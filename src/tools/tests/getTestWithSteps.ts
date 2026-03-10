@@ -1,5 +1,5 @@
 import { AxiosInstance } from 'axios';
-import { Config, JiraIssue, XrayTestStep } from '../../types.js';
+import { Config, JiraIssue, XrayTestStep, XRAY_CREDENTIALS_SETUP_GUIDE } from '../../types.js';
 import { XrayCloudService } from '../../services/XrayCloudService.js';
 
 /**
@@ -68,7 +68,7 @@ export async function getTestWithSteps(
           content: [
             {
               type: 'text',
-              text: `Error: Xray Cloud API not configured. Please set XRAY_CLIENT_ID and XRAY_CLIENT_SECRET environment variables to fetch test steps.`,
+              text: XRAY_CREDENTIALS_SETUP_GUIDE + '\n\nIn the meantime, you can use get_test to see test details without steps.',
             },
           ],
         };
