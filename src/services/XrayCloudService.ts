@@ -35,7 +35,15 @@ export class XrayCloudService {
   public async authenticate(): Promise<string> {
     if (!this.isConfigured()) {
       throw new Error(
-        'Xray Cloud API credentials not configured. Please set XRAY_CLIENT_ID and XRAY_CLIENT_SECRET environment variables.'
+        'Xray Cloud API credentials not configured.\n\n' +
+        'This tool requires Xray Cloud API access. To set up:\n' +
+        '1. Ask Natalia (QA Lead) for Xray Cloud API credentials (Client ID + Secret)\n' +
+        '2. Add them to your .mcp.env file:\n' +
+        '   XRAY_CLIENT_ID=\'your_client_id\'\n' +
+        '   XRAY_CLIENT_SECRET=\'your_client_secret\'\n' +
+        '3. Restart Claude Code to pick up the new credentials\n\n' +
+        'Note: Jira-based test tools (list_tests, create_test, etc.) work without these credentials.\n' +
+        'Only test steps, imports, and exports require the Xray Cloud API.'
       );
     }
 
