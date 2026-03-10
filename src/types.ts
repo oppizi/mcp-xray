@@ -11,6 +11,17 @@ export const ConfigSchema = z.object({
 
 export type Config = z.infer<typeof ConfigSchema>;
 
+// Shared error message for missing Xray Cloud credentials.
+// Used by all tools that require XRAY_CLIENT_ID / XRAY_CLIENT_SECRET.
+export const XRAY_CREDENTIALS_SETUP_GUIDE =
+  'Xray Cloud API credentials not configured.\n\n' +
+  'To set up Xray Cloud API access:\n' +
+  '1. Ask Natalia (QA Lead) for Xray Cloud API credentials (Client ID + Secret)\n' +
+  '2. Add them to your .mcp.env file:\n' +
+  "   XRAY_CLIENT_ID='your_client_id'\n" +
+  "   XRAY_CLIENT_SECRET='your_client_secret'\n" +
+  '3. Restart Claude Code to pick up the new credentials';
+
 // Xray Cloud Authentication Token
 export interface XrayCloudToken {
   token: string;

@@ -1,5 +1,5 @@
 import { AxiosInstance } from 'axios';
-import { Config } from '../../types.js';
+import { Config, XRAY_CREDENTIALS_SETUP_GUIDE } from '../../types.js';
 import { XrayCloudService } from '../../services/XrayCloudService.js';
 
 export const importFeatureFileTool = {
@@ -30,7 +30,7 @@ export async function importFeatureFile(
     
     if (!xrayService.isConfigured()) {
       throw new Error(
-        'Xray Cloud API not configured. Please set XRAY_CLIENT_ID and XRAY_CLIENT_SECRET environment variables.'
+        XRAY_CREDENTIALS_SETUP_GUIDE
       );
     }
 

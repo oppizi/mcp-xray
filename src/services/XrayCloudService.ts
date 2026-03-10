@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
-import { Config, XrayCloudToken } from '../types.js';
+import { Config, XrayCloudToken, XRAY_CREDENTIALS_SETUP_GUIDE } from '../types.js';
 
 export class XrayCloudService {
   private static instance: XrayCloudService;
@@ -35,7 +35,9 @@ export class XrayCloudService {
   public async authenticate(): Promise<string> {
     if (!this.isConfigured()) {
       throw new Error(
-        'Xray Cloud API credentials not configured. Please set XRAY_CLIENT_ID and XRAY_CLIENT_SECRET environment variables.'
+        XRAY_CREDENTIALS_SETUP_GUIDE + '\n\n' +
+        'Note: Jira-based test tools (list_tests, create_test, etc.) work without these credentials.\n' +
+        'Only test steps, imports, and exports require the Xray Cloud API.'
       );
     }
 
