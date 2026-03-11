@@ -1,5 +1,10 @@
 import { AxiosInstance } from 'axios';
 import { Config } from '../../types.js';
+import {
+  linkItemsViaRaven,
+  parseCommaSeparated,
+  formatJiraError,
+} from '../../utils/jiraHelpers.js';
 
 export const addTestsToTestSetTool = {
   name: 'add_tests_to_test_set',
@@ -28,29 +33,21 @@ export async function addTestsToTestSet(
   args: any
 ): Promise<{ content: Array<{ type: string; text: string }> }> {
   try {
-    const testSetKey = args.test_set_key;
-    const testKeys = args.test_keys
-      .split(',')
-      .map((t: string) => t.trim());
+    const testKeys = parseCommaSeparated(args.test_keys);
 
-    console.error(`Adding tests to test set: ${testSetKey}`);
+    console.error(`Adding tests to test set: ${args.test_set_key}`);
 
-    await axiosInstance.post(
-      `/rest/raven/1.0/api/testset/${testSetKey}/test`,
-      {
-        add: testKeys,
-      }
-    );
+    await linkItemsViaRaven(axiosInstance, 'testset', args.test_set_key, testKeys);
 
     return {
       content: [
         {
           type: 'text',
-          text: `Successfully added tests to test set ${testSetKey}
+          text: `Successfully added tests to test set ${args.test_set_key}
 
 **Tests Added:** ${testKeys.join(', ')}
 
-View at: ${config.JIRA_BASE_URL}/browse/${testSetKey}`,
+View at: ${config.JIRA_BASE_URL}/browse/${args.test_set_key}`,
         },
       ],
     };
@@ -60,12 +57,7 @@ View at: ${config.JIRA_BASE_URL}/browse/${testSetKey}`,
       content: [
         {
           type: 'text',
-          text: `Error adding tests to test set: ${
-            error.response?.data?.errorMessages?.[0] ||
-            error.response?.data?.error ||
-            error.message ||
-            'Unknown error'
-          }`,
+          text: `Error adding tests to test set: ${formatJiraError(error)}`,
         },
       ],
     };

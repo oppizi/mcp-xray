@@ -1,5 +1,10 @@
 import { AxiosInstance } from 'axios';
 import { Config } from '../../types.js';
+import {
+  linkItemsViaRaven,
+  parseCommaSeparated,
+  formatJiraError,
+} from '../../utils/jiraHelpers.js';
 
 export const addPreconditionToTestTool = {
   name: 'add_precondition_to_test',
@@ -29,32 +34,24 @@ export async function addPreconditionToTest(
   args: any
 ): Promise<{ content: Array<{ type: string; text: string }> }> {
   try {
-    const preconditionKey = args.precondition_key;
-    const testKeys = args.test_keys
-      .split(',')
-      .map((t: string) => t.trim());
+    const testKeys = parseCommaSeparated(args.test_keys);
 
     console.error(
-      `Linking precondition ${preconditionKey} to tests: ${testKeys.join(', ')}`
+      `Linking precondition ${args.precondition_key} to tests: ${testKeys.join(', ')}`
     );
 
-    await axiosInstance.post(
-      `/rest/raven/1.0/api/precondition/${preconditionKey}/test`,
-      {
-        add: testKeys,
-      }
-    );
+    await linkItemsViaRaven(axiosInstance, 'precondition', args.precondition_key, testKeys);
 
     return {
       content: [
         {
           type: 'text',
-          text: `Successfully linked precondition ${preconditionKey} to tests
+          text: `Successfully linked precondition ${args.precondition_key} to tests
 
-**Precondition:** ${preconditionKey}
+**Precondition:** ${args.precondition_key}
 **Tests Linked:** ${testKeys.join(', ')}
 
-View at: ${config.JIRA_BASE_URL}/browse/${preconditionKey}`,
+View at: ${config.JIRA_BASE_URL}/browse/${args.precondition_key}`,
         },
       ],
     };
@@ -64,12 +61,7 @@ View at: ${config.JIRA_BASE_URL}/browse/${preconditionKey}`,
       content: [
         {
           type: 'text',
-          text: `Error linking precondition to tests: ${
-            error.response?.data?.errorMessages?.[0] ||
-            error.response?.data?.error ||
-            error.message ||
-            'Unknown error'
-          }`,
+          text: `Error linking precondition to tests: ${formatJiraError(error)}`,
         },
       ],
     };

@@ -1,5 +1,10 @@
 import { AxiosInstance } from 'axios';
-import { Config, JiraIssue } from '../../types.js';
+import { Config } from '../../types.js';
+import {
+  createXrayIssue,
+  parseCommaSeparated,
+  formatJiraError,
+} from '../../utils/jiraHelpers.js';
 
 export const createPreconditionTool = {
   name: 'create_precondition',
@@ -41,87 +46,29 @@ export async function createPrecondition(
   args: any
 ): Promise<{ content: Array<{ type: string; text: string }> }> {
   try {
-    const projectKey = args.project_key;
-    const summary = args.summary;
-    const description = args.description || '';
-    const labels = args.labels
-      ? args.labels.split(',').map((l: string) => l.trim())
-      : [];
+    const labels = args.labels ? parseCommaSeparated(args.labels) : [];
 
-    console.error(`Creating precondition in project: ${projectKey}`);
+    console.error(`Creating precondition in project: ${args.project_key}`);
 
-    // Get issue type ID for Pre-Condition
-    const issueTypesResponse = await axiosInstance.get(
-      `/rest/api/3/issue/createmeta`,
-      {
-        params: {
-          projectKeys: projectKey,
-          expand: 'projects.issuetypes.fields',
-        },
-      }
-    );
-
-    const project = issueTypesResponse.data.projects[0];
-    const preconditionType = project.issuetypes.find(
-      (type: any) =>
-        type.name === 'Pre-Condition' || type.name === 'Precondition'
-    );
-
-    if (!preconditionType) {
-      throw new Error(
-        `Pre-Condition issue type not found in project ${projectKey}. Make sure Xray is installed.`
-      );
-    }
-
-    const issueData: any = {
-      fields: {
-        project: {
-          key: projectKey,
-        },
-        summary: summary,
-        description: {
-          type: 'doc',
-          version: 1,
-          content: [
-            {
-              type: 'paragraph',
-              content: [
-                {
-                  type: 'text',
-                  text: description,
-                },
-              ],
-            },
-          ],
-        },
-        issuetype: {
-          id: preconditionType.id,
-        },
-      },
-    };
-
-    if (labels.length > 0) {
-      issueData.fields.labels = labels;
-    }
-
-    const response = await axiosInstance.post<JiraIssue>(
-      '/rest/api/3/issue',
-      issueData
-    );
-
-    const preconditionKey = response.data.key;
+    const issue = await createXrayIssue(axiosInstance, config, {
+      projectKey: args.project_key,
+      issueTypeName: ['Pre-Condition', 'Precondition'],
+      summary: args.summary,
+      description: args.description,
+      labels,
+    });
 
     return {
       content: [
         {
           type: 'text',
-          text: `Successfully created precondition: ${preconditionKey}
+          text: `Successfully created precondition: ${issue.key}
 
-**Summary:** ${summary}
-**Project:** ${projectKey}
+**Summary:** ${args.summary}
+**Project:** ${args.project_key}
 ${labels.length > 0 ? `**Labels:** ${labels.join(', ')}` : ''}
 
-View at: ${config.JIRA_BASE_URL}/browse/${preconditionKey}`,
+View at: ${issue.url}`,
         },
       ],
     };
@@ -131,12 +78,7 @@ View at: ${config.JIRA_BASE_URL}/browse/${preconditionKey}`,
       content: [
         {
           type: 'text',
-          text: `Error creating precondition: ${
-            error.response?.data?.errorMessages?.[0] ||
-            (error.response?.data?.errors
-              ? JSON.stringify(error.response.data.errors)
-              : error.message || 'Unknown error')
-          }`,
+          text: `Error creating precondition: ${formatJiraError(error)}`,
         },
       ],
     };

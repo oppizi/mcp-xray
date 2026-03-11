@@ -1,5 +1,11 @@
 import { AxiosInstance } from 'axios';
-import { Config, JiraIssue } from '../../types.js';
+import { Config } from '../../types.js';
+import {
+  createXrayIssue,
+  linkItemsViaRaven,
+  parseCommaSeparated,
+  formatJiraError,
+} from '../../utils/jiraHelpers.js';
 
 export const createTestSetTool = {
   name: 'create_test_set',
@@ -40,90 +46,24 @@ export async function createTestSet(
   args: any
 ): Promise<{ content: Array<{ type: string; text: string }> }> {
   try {
-    const projectKey = args.project_key;
-    const summary = args.summary;
-    const description = args.description || '';
-    const labels = args.labels
-      ? args.labels.split(',').map((l: string) => l.trim())
-      : [];
-    const testKeys = args.tests
-      ? args.tests.split(',').map((t: string) => t.trim())
-      : [];
+    const labels = args.labels ? parseCommaSeparated(args.labels) : [];
+    const testKeys = args.tests ? parseCommaSeparated(args.tests) : [];
 
-    console.error(`Creating test set in project: ${projectKey}`);
+    console.error(`Creating test set in project: ${args.project_key}`);
 
-    // Get issue type ID for Test Set
-    const issueTypesResponse = await axiosInstance.get(
-      `/rest/api/3/issue/createmeta`,
-      {
-        params: {
-          projectKeys: projectKey,
-          expand: 'projects.issuetypes.fields',
-        },
-      }
-    );
-
-    const project = issueTypesResponse.data.projects[0];
-    const testSetIssueType = project.issuetypes.find(
-      (type: any) => type.name === 'Test Set'
-    );
-
-    if (!testSetIssueType) {
-      throw new Error(
-        `Test Set issue type not found in project ${projectKey}. Make sure Xray is installed.`
-      );
-    }
-
-    // Build the issue creation payload
-    const issueData: any = {
-      fields: {
-        project: {
-          key: projectKey,
-        },
-        summary: summary,
-        description: {
-          type: 'doc',
-          version: 1,
-          content: [
-            {
-              type: 'paragraph',
-              content: [
-                {
-                  type: 'text',
-                  text: description,
-                },
-              ],
-            },
-          ],
-        },
-        issuetype: {
-          id: testSetIssueType.id,
-        },
-      },
-    };
-
-    if (labels.length > 0) {
-      issueData.fields.labels = labels;
-    }
-
-    // Create the test set issue
-    const response = await axiosInstance.post<JiraIssue>(
-      '/rest/api/3/issue',
-      issueData
-    );
-
-    const testSetKey = response.data.key;
+    const issue = await createXrayIssue(axiosInstance, config, {
+      projectKey: args.project_key,
+      issueTypeName: 'Test Set',
+      summary: args.summary,
+      description: args.description,
+      labels,
+    });
 
     // Add tests to the set if provided
     let addedTests = '';
     if (testKeys.length > 0) {
       try {
-        await axiosInstance.post(
-          `/rest/raven/1.0/api/testset/${testSetKey}/test`,
-          {
-            add: testKeys,
-          }
-        );
+        await linkItemsViaRaven(axiosInstance, 'testset', issue.key, testKeys);
         addedTests = `\n**Tests Added:** ${testKeys.join(', ')}`;
       } catch (addError: any) {
         console.error('Could not add tests to test set:', addError.message);
@@ -135,13 +75,13 @@ export async function createTestSet(
       content: [
         {
           type: 'text',
-          text: `Successfully created test set: ${testSetKey}
+          text: `Successfully created test set: ${issue.key}
 
-**Summary:** ${summary}
-**Project:** ${projectKey}
+**Summary:** ${args.summary}
+**Project:** ${args.project_key}
 ${labels.length > 0 ? `**Labels:** ${labels.join(', ')}` : ''}${addedTests}
 
-View at: ${config.JIRA_BASE_URL}/browse/${testSetKey}`,
+View at: ${issue.url}`,
         },
       ],
     };
@@ -151,12 +91,7 @@ View at: ${config.JIRA_BASE_URL}/browse/${testSetKey}`,
       content: [
         {
           type: 'text',
-          text: `Error creating test set: ${
-            error.response?.data?.errorMessages?.[0] ||
-            (error.response?.data?.errors
-              ? JSON.stringify(error.response.data.errors)
-              : error.message || 'Unknown error')
-          }`,
+          text: `Error creating test set: ${formatJiraError(error)}`,
         },
       ],
     };
