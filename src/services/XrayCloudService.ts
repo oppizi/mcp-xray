@@ -199,6 +199,286 @@ export class XrayCloudService {
     }
   }
 
+  // Resolve a Jira issue key (e.g., PAD-29471) to its Xray internal numeric ID
+  public async resolveXrayId(testKey: string): Promise<string> {
+    const token = await this.authenticate();
+
+    try {
+      const query = `
+        query {
+          getTests(jql: "key = ${testKey}", limit: 1) {
+            total
+            results {
+              issueId
+            }
+          }
+        }
+      `;
+
+      const response = await axios.post(
+        'https://xray.cloud.getxray.app/api/v2/graphql',
+        { query },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 30000,
+        }
+      );
+
+      if (response.data.errors) {
+        throw new Error(`GraphQL errors: ${JSON.stringify(response.data.errors)}`);
+      }
+
+      const results = response.data.data.getTests?.results || [];
+      if (results.length === 0) {
+        throw new Error(`Test ${testKey} not found in Xray Cloud`);
+      }
+
+      return results[0].issueId;
+    } catch (error: any) {
+      console.error(`Failed to resolve Xray ID for ${testKey}:`, error.message);
+
+      if (error.response?.status === 401) {
+        this.token = null;
+      }
+
+      throw error;
+    }
+  }
+
+  // Add a test step to a test case via GraphQL mutation
+  public async addTestStep(issueId: string, step: { action: string; data?: string; result?: string }): Promise<any> {
+    const token = await this.authenticate();
+
+    try {
+      const stepInput: any = { action: step.action };
+      if (step.data) stepInput.data = step.data;
+      if (step.result) stepInput.result = step.result;
+
+      const query = `
+        mutation {
+          addTestStep(issueId: "${issueId}", step: ${JSON.stringify(stepInput).replace(/"([^"]+)":/g, '$1:')}) {
+            id
+            action
+            data
+            result
+          }
+        }
+      `;
+
+      const response = await axios.post(
+        'https://xray.cloud.getxray.app/api/v2/graphql',
+        { query },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 30000,
+        }
+      );
+
+      if (response.data.errors) {
+        throw new Error(`GraphQL errors: ${JSON.stringify(response.data.errors)}`);
+      }
+
+      return response.data.data.addTestStep;
+    } catch (error: any) {
+      console.error('Failed to add test step:', error.message);
+
+      if (error.response?.status === 401) {
+        this.token = null;
+      }
+
+      throw error;
+    }
+  }
+
+  // Update an existing test step via GraphQL mutation
+  // Note: Xray GraphQL API takes only stepId + step (no issueId)
+  public async updateTestStep(stepId: string, step: { action?: string; data?: string; result?: string }): Promise<any> {
+    const token = await this.authenticate();
+
+    try {
+      const stepInput: any = {};
+      if (step.action !== undefined) stepInput.action = step.action;
+      if (step.data !== undefined) stepInput.data = step.data;
+      if (step.result !== undefined) stepInput.result = step.result;
+
+      const query = `
+        mutation {
+          updateTestStep(stepId: "${stepId}", step: ${JSON.stringify(stepInput).replace(/"([^"]+)":/g, '$1:')}) {
+            id
+            action
+            data
+            result
+          }
+        }
+      `;
+
+      const response = await axios.post(
+        'https://xray.cloud.getxray.app/api/v2/graphql',
+        { query },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 30000,
+        }
+      );
+
+      if (response.data.errors) {
+        throw new Error(`GraphQL errors: ${JSON.stringify(response.data.errors)}`);
+      }
+
+      return response.data.data.updateTestStep;
+    } catch (error: any) {
+      console.error('Failed to update test step:', error.message);
+
+      if (error.response?.status === 401) {
+        this.token = null;
+      }
+
+      throw error;
+    }
+  }
+
+  // Remove a test step via GraphQL mutation
+  // Note: Xray GraphQL API takes only stepId (no issueId)
+  public async removeTestStep(stepId: string): Promise<void> {
+    const token = await this.authenticate();
+
+    try {
+      const query = `
+        mutation {
+          removeTestStep(stepId: "${stepId}")
+        }
+      `;
+
+      const response = await axios.post(
+        'https://xray.cloud.getxray.app/api/v2/graphql',
+        { query },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 30000,
+        }
+      );
+
+      if (response.data.errors) {
+        throw new Error(`GraphQL errors: ${JSON.stringify(response.data.errors)}`);
+      }
+    } catch (error: any) {
+      console.error('Failed to remove test step:', error.message);
+
+      if (error.response?.status === 401) {
+        this.token = null;
+      }
+
+      throw error;
+    }
+  }
+
+  // Search tests via GraphQL (bypasses JQL permission restrictions on Xray types)
+  public async searchTests(jql: string, limit: number = 50): Promise<any> {
+    const token = await this.authenticate();
+
+    try {
+      const query = `
+        query {
+          getTests(jql: "${jql}", limit: ${limit}) {
+            total
+            results {
+              issueId
+              testType {
+                name
+                kind
+              }
+              steps {
+                id
+                action
+                data
+                result
+              }
+              gherkin
+            }
+          }
+        }
+      `;
+
+      const response = await axios.post(
+        'https://xray.cloud.getxray.app/api/v2/graphql',
+        { query },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 30000,
+        }
+      );
+
+      if (response.data.errors) {
+        throw new Error(`GraphQL errors: ${JSON.stringify(response.data.errors)}`);
+      }
+
+      return response.data.data.getTests;
+    } catch (error: any) {
+      console.error('Failed to search tests:', error.message);
+
+      if (error.response?.status === 401) {
+        this.token = null;
+      }
+
+      throw error;
+    }
+  }
+
+  // Update gherkin definition on a test via GraphQL mutation
+  public async updateGherkin(issueId: string, gherkin: string): Promise<any> {
+    const token = await this.authenticate();
+
+    try {
+      const escapedGherkin = gherkin.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n');
+      const query = `
+        mutation {
+          updateGherkinDefinition(issueId: "${issueId}", gherkin: "${escapedGherkin}")
+        }
+      `;
+
+      const response = await axios.post(
+        'https://xray.cloud.getxray.app/api/v2/graphql',
+        { query },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 30000,
+        }
+      );
+
+      if (response.data.errors) {
+        throw new Error(`GraphQL errors: ${JSON.stringify(response.data.errors)}`);
+      }
+
+      return response.data.data.updateGherkinDefinition;
+    } catch (error: any) {
+      console.error('Failed to update gherkin:', error.message);
+
+      if (error.response?.status === 401) {
+        this.token = null;
+      }
+
+      throw error;
+    }
+  }
+
   // Import test execution results in Xray JSON format
   public async importExecutionResults(results: any): Promise<any> {
     const token = await this.authenticate();
