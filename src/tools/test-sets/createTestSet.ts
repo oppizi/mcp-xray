@@ -1,5 +1,6 @@
 import { AxiosInstance } from 'axios';
 import { Config } from '../../types.js';
+import { XrayCloudService } from '../../services/XrayCloudService.js';
 
 export const createTestSetTool = {
   name: 'create_test_set',
@@ -96,16 +97,22 @@ export async function createTestSet(
     const response = await axiosInstance.post('/rest/api/3/issue', issueData);
     const key = response.data.key;
 
-    // Add tests if provided
+    // Add tests via Xray Cloud GraphQL
     let addedTests: string[] = [];
     if (tests) {
       const testKeys = tests.split(',').map((t: string) => t.trim());
       try {
-        await axiosInstance.post(
-          `/rest/raven/1.0/api/testset/${key}/test`,
-          { add: testKeys }
-        );
-        addedTests = testKeys;
+        const xrayService = XrayCloudService.getInstance(config);
+        if (xrayService.isConfigured()) {
+          const setId = await xrayService.resolveIssueId(axiosInstance, key);
+          const testIds = await Promise.all(
+            testKeys.map((tk: string) => xrayService.resolveIssueId(axiosInstance, tk))
+          );
+          await xrayService.addTestsToTestSet(setId, testIds);
+          addedTests = testKeys;
+        } else {
+          console.error('Xray Cloud API not configured — tests not added to set.');
+        }
       } catch (addError: any) {
         console.error('Could not add tests to set:', addError.message);
       }

@@ -28,8 +28,8 @@ export interface JiraUser {
 // Xray Test Types
 export type XrayTestType = 'Manual' | 'Cucumber' | 'Generic';
 
-// Test Status
-export type TestStatus = 'TODO' | 'EXECUTING' | 'PASS' | 'FAIL' | 'ABORTED';
+// Test Status (Xray Cloud uses PASSED/FAILED, not PASS/FAIL)
+export type TestStatus = 'TO DO' | 'EXECUTING' | 'PASSED' | 'FAILED' | 'KNOWN_ISSUE' | 'BLOCKED' | 'SKIPPED';
 
 // Test Step
 export interface XrayTestStep {
@@ -205,13 +205,11 @@ export interface JiraIssue {
   };
 }
 
-// Jira Search Response
+// Jira Search Response (from POST /rest/api/3/search/jql)
 export interface JiraSearchResponse {
-  expand: string;
-  startAt: number;
-  maxResults: number;
-  total: number;
   issues: JiraIssue[];
+  isLast: boolean;
+  nextPageToken?: string;
 }
 
 // Test Import Response

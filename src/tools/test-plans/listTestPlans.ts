@@ -35,7 +35,7 @@ export async function listTestPlans(
     console.error(`Fetching test plans for project: ${projectKey}`);
 
     // Build JQL query for Test Plan issue type
-    const jql = `project = ${projectKey} AND issuetype = "Xray Test Plan" ORDER BY created DESC`;
+    const jql = `project = ${projectKey} AND issuetype = "Test Plan" ORDER BY created DESC`;
 
     const response = await axiosInstance.post<JiraSearchResponse>(
       '/rest/api/3/search/jql',

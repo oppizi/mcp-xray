@@ -1,5 +1,6 @@
 import { AxiosInstance } from 'axios';
 import { Config } from '../../types.js';
+import { XrayCloudService } from '../../services/XrayCloudService.js';
 
 export const createPreconditionTool = {
   name: 'create_precondition',
@@ -50,6 +51,8 @@ export async function createPrecondition(
       project_key,
       summary,
       description = '',
+      precondition_type = 'Manual',
+      definition,
       labels,
     } = args;
 
@@ -107,6 +110,25 @@ export async function createPrecondition(
     const response = await axiosInstance.post('/rest/api/3/issue', issueData);
     const key = response.data.key;
 
+    // Set precondition type and definition via Xray Cloud GraphQL if configured
+    if (definition) {
+      try {
+        const xrayService = XrayCloudService.getInstance(config);
+        if (xrayService.isConfigured()) {
+          const issueId = await xrayService.resolveIssueId(axiosInstance, key);
+          await xrayService.updatePreconditionDefinition(
+            issueId,
+            precondition_type,
+            definition
+          );
+        } else {
+          console.error('Xray Cloud API not configured — precondition definition not set.');
+        }
+      } catch (defError: any) {
+        console.error('Could not set precondition definition:', defError.message);
+      }
+    }
+
     return {
       content: [
         {
@@ -115,6 +137,8 @@ export async function createPrecondition(
 
 **Summary:** ${summary}
 **Project:** ${project_key}
+**Type:** ${precondition_type}
+${definition ? `**Definition:** Set via Xray API` : ''}
 ${labels ? `**Labels:** ${labels}` : ''}
 
 View at: ${config.JIRA_BASE_URL}/browse/${key}`,

@@ -108,10 +108,9 @@ View at: ${config.JIRA_BASE_URL}/browse/${testKey}`,
           type: 'text',
           text: `Error updating test: ${
             error.response?.data?.errorMessages?.[0] ||
-            error.response?.data?.errors
+            (error.response?.data?.errors
               ? JSON.stringify(error.response.data.errors)
-              : error.message ||
-                'Unknown error'
+              : error.message || 'Unknown error')
           }`,
         },
       ],

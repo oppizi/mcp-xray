@@ -4,15 +4,16 @@ import { XrayCloudService } from '../../services/XrayCloudService.js';
 
 export const exportCucumberFeaturesTool = {
   name: 'export_cucumber_features',
-  description: 'Export Cucumber feature files from Xray. Can export all features or specific test keys.',
+  description: 'Export Cucumber feature files from Xray Cloud for specific test keys.',
   inputSchema: {
     type: 'object',
     properties: {
       test_keys: {
         type: 'string',
-        description: 'Optional: Comma-separated list of test keys to export (e.g., "EXM-1,EXM-2"). If not provided, exports all features from the project.',
+        description: 'Comma-separated list of Cucumber test keys to export (e.g., "PAD-123,PAD-456"). Required.',
       },
     },
+    required: ['test_keys'],
   },
 };
 
