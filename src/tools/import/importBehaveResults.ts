@@ -12,6 +12,10 @@ export const importBehaveResultsTool = {
         type: 'string',
         description: 'Behave JSON results as a string or JSON array',
       },
+      project_key: {
+        type: 'string',
+        description: 'Jira project key (e.g., PAD). Required if not using test_execution_key.',
+      },
     },
     required: ['behave_json'],
   },
@@ -43,7 +47,7 @@ export async function importBehaveResults(
     // Parse JSON if it's a string
     const results = typeof behaveJson === 'string' ? JSON.parse(behaveJson) : behaveJson;
 
-    const response = await xrayService.importBehaveResults(results);
+    const response = await xrayService.importBehaveResults(results, args.project_key);
 
     let output = '**Behave Results Imported Successfully**\n\n';
     

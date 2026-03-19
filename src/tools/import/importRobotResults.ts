@@ -12,6 +12,10 @@ export const importRobotResultsTool = {
         type: 'string',
         description: 'Robot Framework XML results (output.xml) as a string',
       },
+      project_key: {
+        type: 'string',
+        description: 'Jira project key (e.g., PAD). Required if not using test_execution_key.',
+      },
     },
     required: ['robot_xml'],
   },
@@ -40,7 +44,7 @@ export async function importRobotResults(
       );
     }
 
-    const response = await xrayService.importRobotResults(robotXml);
+    const response = await xrayService.importRobotResults(robotXml, args.project_key);
 
     let output = '**Robot Framework Results Imported Successfully**\n\n';
     

@@ -12,6 +12,10 @@ export const importTestNGResultsTool = {
         type: 'string',
         description: 'TestNG XML results as a string',
       },
+      project_key: {
+        type: 'string',
+        description: 'Jira project key (e.g., PAD). Required if not using test_execution_key.',
+      },
     },
     required: ['testng_xml'],
   },
@@ -40,7 +44,7 @@ export async function importTestNGResults(
       );
     }
 
-    const response = await xrayService.importTestNGResults(testngXml);
+    const response = await xrayService.importTestNGResults(testngXml, args.project_key);
 
     let output = '**TestNG Results Imported Successfully**\n\n';
     

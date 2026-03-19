@@ -12,6 +12,10 @@ export const importNUnitResultsTool = {
         type: 'string',
         description: 'NUnit XML results as a string',
       },
+      project_key: {
+        type: 'string',
+        description: 'Jira project key (e.g., PAD). Required if not using test_execution_key.',
+      },
     },
     required: ['nunit_xml'],
   },
@@ -40,7 +44,7 @@ export async function importNUnitResults(
       );
     }
 
-    const response = await xrayService.importNUnitResults(nunitXml);
+    const response = await xrayService.importNUnitResults(nunitXml, args.project_key);
 
     let output = '**NUnit Results Imported Successfully**\n\n';
     

@@ -59,6 +59,14 @@ import {
   listTestSetsTool,
 } from './tools/test-sets/listTestSets.js';
 import { getTestSet, getTestSetTool } from './tools/test-sets/getTestSet.js';
+import {
+  createTestSet,
+  createTestSetTool,
+} from './tools/test-sets/createTestSet.js';
+import {
+  addTestsToTestSet,
+  addTestsToTestSetTool,
+} from './tools/test-sets/addTestsToTestSet.js';
 
 // Import Operations
 import {
@@ -93,6 +101,36 @@ import {
   importFeatureFile,
   importFeatureFileTool,
 } from './tools/import/importFeatureFile.js';
+
+// Gherkin
+import {
+  updateGherkin,
+  updateGherkinTool,
+} from './tools/tests/updateGherkin.js';
+
+// Test Steps
+import { addTestStep, addTestStepTool } from './tools/tests/addTestStep.js';
+import {
+  updateTestStep,
+  updateTestStepTool,
+} from './tools/tests/updateTestStep.js';
+import {
+  removeTestStep,
+  removeTestStepTool,
+} from './tools/tests/removeTestStep.js';
+
+// Search
+import { searchTests, searchTestsTool } from './tools/tests/searchTests.js';
+
+// Preconditions
+import {
+  createPrecondition,
+  createPreconditionTool,
+} from './tools/preconditions/createPrecondition.js';
+import {
+  addPreconditionToTest,
+  addPreconditionToTestTool,
+} from './tools/preconditions/addPreconditionToTest.js';
 
 // Export Operations
 import {
@@ -164,6 +202,10 @@ class XrayMCPServer {
         // Test Sets
         listTestSetsTool,
         getTestSetTool,
+        createTestSetTool,
+        addTestsToTestSetTool,
+        // Gherkin
+        updateGherkinTool,
         // Import Operations
         importExecutionResultsTool,
         importCucumberResultsTool,
@@ -173,6 +215,15 @@ class XrayMCPServer {
         importRobotResultsTool,
         importBehaveResultsTool,
         importFeatureFileTool,
+        // Test Steps
+        addTestStepTool,
+        updateTestStepTool,
+        removeTestStepTool,
+        // Search
+        searchTestsTool,
+        // Preconditions
+        createPreconditionTool,
+        addPreconditionToTestTool,
         // Export Operations
         exportCucumberFeaturesTool,
       ],
@@ -210,6 +261,10 @@ class XrayMCPServer {
           // Test Sets
           list_test_sets: listTestSets,
           get_test_set: getTestSet,
+          create_test_set: createTestSet,
+          add_tests_to_test_set: addTestsToTestSet,
+          // Gherkin
+          update_gherkin: updateGherkin,
           // Import Operations
           import_execution_results: importExecutionResults,
           import_cucumber_results: importCucumberResults,
@@ -219,6 +274,15 @@ class XrayMCPServer {
           import_robot_results: importRobotResults,
           import_behave_results: importBehaveResults,
           import_feature_file: importFeatureFile,
+          // Test Steps
+          add_test_step: addTestStep,
+          update_test_step: updateTestStep,
+          remove_test_step: removeTestStep,
+          // Search
+          search_tests: searchTests,
+          // Preconditions
+          create_precondition: createPrecondition,
+          add_precondition_to_test: addPreconditionToTest,
           // Export Operations
           export_cucumber_features: exportCucumberFeatures,
         };

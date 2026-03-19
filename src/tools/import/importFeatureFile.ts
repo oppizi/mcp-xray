@@ -12,6 +12,10 @@ export const importFeatureFileTool = {
         type: 'string',
         description: 'Content of the .feature file (Gherkin syntax)',
       },
+      project_key: {
+        type: 'string',
+        description: 'Jira project key (e.g., PAD). Required if not using test_execution_key.',
+      },
     },
     required: ['feature_content'],
   },
@@ -40,7 +44,7 @@ export async function importFeatureFile(
       );
     }
 
-    const response = await xrayService.importFeatureFile(featureContent);
+    const response = await xrayService.importFeatureFile(featureContent, args.project_key);
 
     let output = '**Feature File Imported Successfully**\n\n';
     

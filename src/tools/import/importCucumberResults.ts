@@ -12,6 +12,10 @@ export const importCucumberResultsTool = {
         type: 'string',
         description: 'Cucumber JSON results as a string or JSON array',
       },
+      project_key: {
+        type: 'string',
+        description: 'Jira project key (e.g., PAD). Required if not using test_execution_key.',
+      },
     },
     required: ['cucumber_json'],
   },
@@ -43,7 +47,7 @@ export async function importCucumberResults(
     // Parse JSON if it's a string
     const results = typeof cucumberJson === 'string' ? JSON.parse(cucumberJson) : cucumberJson;
 
-    const response = await xrayService.importCucumberResults(results);
+    const response = await xrayService.importCucumberResults(results, args.project_key);
 
     let output = '**Cucumber Results Imported Successfully**\n\n';
     

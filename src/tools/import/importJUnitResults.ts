@@ -12,6 +12,10 @@ export const importJUnitResultsTool = {
         type: 'string',
         description: 'JUnit XML results as a string',
       },
+      project_key: {
+        type: 'string',
+        description: 'Jira project key (e.g., PAD). Required if not using test_execution_key.',
+      },
     },
     required: ['junit_xml'],
   },
@@ -40,7 +44,7 @@ export async function importJUnitResults(
       );
     }
 
-    const response = await xrayService.importJUnitResults(junitXml);
+    const response = await xrayService.importJUnitResults(junitXml, args.project_key);
 
     let output = '**JUnit Results Imported Successfully**\n\n';
     
