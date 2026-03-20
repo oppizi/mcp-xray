@@ -1,5 +1,6 @@
 import { AxiosInstance } from 'axios';
 import { Config, JiraIssue } from '../../types.js';
+import { XrayCloudService } from '../../services/XrayCloudService.js';
 
 export const createTestExecutionTool = {
   name: 'create_test_execution',
@@ -113,47 +114,41 @@ export async function createTestExecution(
 
     const testExecKey = response.data.key;
 
+    // Use Xray Cloud GraphQL for associations (raven REST endpoints don't exist on Cloud)
+    const xrayService = XrayCloudService.getInstance(config);
+    const xrayConfigured = xrayService.isConfigured();
+
     // Associate with test plan if provided
-    if (testPlanKey) {
+    if (testPlanKey && xrayConfigured) {
       try {
-        await axiosInstance.post(
-          `/rest/raven/1.0/api/testplan/${testPlanKey}/testexecution`,
-          {
-            add: [testExecKey],
-          }
-        );
+        const planId = await xrayService.resolveIssueId(axiosInstance, testPlanKey);
+        const execId = await xrayService.resolveIssueId(axiosInstance, testExecKey);
+        await xrayService.addTestExecutionToTestPlan(planId, [execId]);
       } catch (planError) {
         console.error('Could not associate with test plan:', planError);
-        // Continue anyway
       }
     }
 
     // Add tests to execution if provided
-    if (tests.length > 0) {
+    if (tests.length > 0 && xrayConfigured) {
       try {
-        await axiosInstance.post(
-          `/rest/raven/1.0/api/testexec/${testExecKey}/test`,
-          {
-            add: tests,
-          }
+        const execId = await xrayService.resolveIssueId(axiosInstance, testExecKey);
+        const testIds = await Promise.all(
+          tests.map((key: string) => xrayService.resolveIssueId(axiosInstance, key))
         );
+        await xrayService.addTestsToTestExecution(execId, testIds);
       } catch (testError) {
         console.error('Could not add tests to execution:', testError);
-        // Continue anyway
       }
     }
 
     // Set test environments if provided
-    if (testEnvironments.length > 0) {
+    if (testEnvironments.length > 0 && xrayConfigured) {
       try {
-        await axiosInstance.put(`/rest/api/3/issue/${testExecKey}`, {
-          fields: {
-            customfield_testEnvironments: testEnvironments,
-          },
-        });
+        const execId = await xrayService.resolveIssueId(axiosInstance, testExecKey);
+        await xrayService.addTestEnvironments(execId, testEnvironments);
       } catch (envError) {
         console.error('Could not set test environments:', envError);
-        // Continue anyway
       }
     }
 
@@ -181,10 +176,9 @@ View at: ${config.JIRA_BASE_URL}/browse/${testExecKey}`,
           type: 'text',
           text: `Error creating test execution: ${
             error.response?.data?.errorMessages?.[0] ||
-            error.response?.data?.errors
+            (error.response?.data?.errors
               ? JSON.stringify(error.response.data.errors)
-              : error.message ||
-                'Unknown error'
+              : error.message || 'Unknown error')
           }`,
         },
       ],

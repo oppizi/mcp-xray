@@ -1,5 +1,6 @@
 import { AxiosInstance } from 'axios';
 import { Config, JiraIssue } from '../../types.js';
+import { XrayCloudService } from '../../services/XrayCloudService.js';
 
 export const getTestSetTool = {
   name: 'get_test_set',
@@ -39,13 +40,13 @@ export async function getTestSet(
     const testSet = response.data;
     const fields = testSet.fields;
 
-    // Try to get associated tests from Xray API
+    // Try to get associated tests from Xray Cloud GraphQL API
     let associatedTests: string[] = [];
     try {
-      const xrayResponse = await axiosInstance.get(
-        `/rest/raven/1.0/api/testset/${testSetKey}/test`
-      );
-      associatedTests = xrayResponse.data.map((test: any) => test.key);
+      const xrayService = XrayCloudService.getInstance(config);
+      if (xrayService.isConfigured()) {
+        associatedTests = await xrayService.getTestSetTests(testSetKey);
+      }
     } catch (testError) {
       console.error('Could not fetch associated tests:', testError);
       // Continue without tests

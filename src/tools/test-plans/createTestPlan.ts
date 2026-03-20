@@ -1,5 +1,6 @@
 import { AxiosInstance } from 'axios';
 import { Config, JiraIssue } from '../../types.js';
+import { XrayCloudService } from '../../services/XrayCloudService.js';
 
 export const createTestPlanTool = {
   name: 'create_test_plan',
@@ -101,18 +102,21 @@ export async function createTestPlan(
 
     const testPlanKey = response.data.key;
 
-    // Add tests to plan if provided
+    // Add tests to plan via Xray Cloud GraphQL
     if (tests.length > 0) {
       try {
-        await axiosInstance.post(
-          `/rest/raven/1.0/api/testplan/${testPlanKey}/test`,
-          {
-            add: tests,
-          }
-        );
+        const xrayService = XrayCloudService.getInstance(config);
+        if (xrayService.isConfigured()) {
+          const planId = await xrayService.resolveIssueId(axiosInstance, testPlanKey);
+          const testIds = await Promise.all(
+            tests.map((key: string) => xrayService.resolveIssueId(axiosInstance, key))
+          );
+          await xrayService.addTestsToTestPlan(planId, testIds);
+        } else {
+          console.error('Xray Cloud API not configured — tests not added to plan.');
+        }
       } catch (testError) {
         console.error('Could not add tests to plan:', testError);
-        // Continue anyway
       }
     }
 
@@ -138,10 +142,9 @@ View at: ${config.JIRA_BASE_URL}/browse/${testPlanKey}`,
           type: 'text',
           text: `Error creating test plan: ${
             error.response?.data?.errorMessages?.[0] ||
-            error.response?.data?.errors
+            (error.response?.data?.errors
               ? JSON.stringify(error.response.data.errors)
-              : error.message ||
-                'Unknown error'
+              : error.message || 'Unknown error')
           }`,
         },
       ],

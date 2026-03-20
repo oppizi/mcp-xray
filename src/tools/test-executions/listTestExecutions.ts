@@ -45,7 +45,7 @@ export async function listTestExecutions(
     console.error(`Fetching test executions for project: ${projectKey}`);
 
     // Build JQL query for Test Execution issue type
-    let jql = `project = ${projectKey} AND issuetype = "Xray Test Execution"`;
+    let jql = `project = ${projectKey} AND issuetype = "Test Execution"`;
 
     if (testPlanKey) {
       jql += ` AND issue in testPlanTests("${testPlanKey}")`;

@@ -96,22 +96,26 @@ export class XrayCloudService {
     const token = await this.authenticate();
 
     try {
-      // Use GraphQL to get test details - this is the correct way for Xray Cloud
+      // Use getTests (plural) with JQL - getTest (singular) requires numeric IDs
+      // and passing issue keys returns null
       const query = `
         query {
-          getTest(issueId: "${testKey}") {
-            issueId
-            testType {
-              name
-              kind
+          getTests(jql: ${JSON.stringify(`key = ${testKey}`)}, limit: 1) {
+            total
+            results {
+              issueId
+              testType {
+                name
+                kind
+              }
+              steps {
+                id
+                data
+                action
+                result
+              }
+              gherkin
             }
-            steps {
-              id
-              data
-              action
-              result
-            }
-            gherkin
           }
         }
       `;
@@ -132,14 +136,15 @@ export class XrayCloudService {
         throw new Error(`GraphQL errors: ${JSON.stringify(response.data.errors)}`);
       }
 
-      return response.data.data.getTest;
+      const results = response.data.data.getTests?.results || [];
+      return results.length > 0 ? results[0] : null;
     } catch (error: any) {
       console.error(`Failed to fetch test from Xray Cloud for ${testKey}:`, error.message);
-      
+
       if (error.response?.status === 401) {
         this.token = null;
       }
-      
+
       throw error;
     }
   }
@@ -847,6 +852,596 @@ export class XrayCloudService {
         `Failed to update Gherkin for ${issueId}:`,
         error.message
       );
+      if (error.response?.status === 401) {
+        this.token = null;
+      }
+      throw error;
+    }
+  }
+
+  // Update test type via GraphQL (e.g. Manual → Cucumber or Generic)
+  public async updateTestType(
+    issueId: string,
+    testType: string
+  ): Promise<any> {
+    const token = await this.authenticate();
+
+    const mutation = `
+      mutation {
+        updateTestType(
+          issueId: "${issueId}"
+          testType: { name: ${JSON.stringify(testType)} }
+        ) {
+          issueId
+          testType {
+            name
+            kind
+          }
+        }
+      }
+    `;
+
+    try {
+      const response = await axios.post(
+        'https://xray.cloud.getxray.app/api/v2/graphql',
+        { query: mutation },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 30000,
+        }
+      );
+
+      if (response.data.errors) {
+        throw new Error(`GraphQL errors: ${JSON.stringify(response.data.errors)}`);
+      }
+
+      return response.data.data.updateTestType;
+    } catch (error: any) {
+      console.error(`Failed to update test type for ${issueId}:`, error.message);
+      if (error.response?.status === 401) {
+        this.token = null;
+      }
+      throw error;
+    }
+  }
+
+  // Update precondition type and definition
+  public async updatePreconditionDefinition(
+    issueId: string,
+    preconditionType: string,
+    definition: string
+  ): Promise<any> {
+    const token = await this.authenticate();
+
+    const mutation = `
+      mutation {
+        updatePrecondition(
+          issueId: "${issueId}"
+          data: {
+            preconditionType: { name: ${JSON.stringify(preconditionType)} }
+            definition: ${JSON.stringify(definition)}
+          }
+        ) {
+          issueId
+          preconditionType {
+            name
+          }
+        }
+      }
+    `;
+
+    try {
+      const response = await axios.post(
+        'https://xray.cloud.getxray.app/api/v2/graphql',
+        { query: mutation },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 30000,
+        }
+      );
+
+      if (response.data.errors) {
+        throw new Error(
+          `GraphQL errors: ${JSON.stringify(response.data.errors)}`
+        );
+      }
+
+      return response.data.data.updatePrecondition;
+    } catch (error: any) {
+      console.error(
+        `Failed to update precondition definition for ${issueId}:`,
+        error.message
+      );
+      if (error.response?.status === 401) {
+        this.token = null;
+      }
+      throw error;
+    }
+  }
+
+  // Get test execution details including test runs via GraphQL
+  public async getTestExecutionDetails(testExecKey: string): Promise<any> {
+    const token = await this.authenticate();
+
+    try {
+      const query = `
+        query {
+          getTestExecutions(jql: ${JSON.stringify(`key = ${testExecKey}`)}, limit: 1) {
+            results {
+              issueId
+              testEnvironments
+              testRuns(limit: 100) {
+                results {
+                  id
+                  status { name }
+                  comment
+                  startedOn
+                  finishedOn
+                  executedById
+                  defects
+                  test { issueId jira(fields: ["key"]) }
+                }
+              }
+            }
+          }
+        }
+      `;
+
+      const response = await axios.post(
+        'https://xray.cloud.getxray.app/api/v2/graphql',
+        { query },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 30000,
+        }
+      );
+
+      if (response.data.errors) {
+        throw new Error(`GraphQL errors: ${JSON.stringify(response.data.errors)}`);
+      }
+
+      const results = response.data.data.getTestExecutions?.results || [];
+      return results.length > 0 ? results[0] : null;
+    } catch (error: any) {
+      console.error(`Failed to fetch test execution ${testExecKey}:`, error.message);
+      if (error.response?.status === 401) {
+        this.token = null;
+      }
+      throw error;
+    }
+  }
+
+  // Get test plan associated tests via GraphQL
+  public async getTestPlanTests(testPlanKey: string): Promise<string[]> {
+    const token = await this.authenticate();
+
+    try {
+      const query = `
+        query {
+          getTestPlans(jql: ${JSON.stringify(`key = ${testPlanKey}`)}, limit: 1) {
+            results {
+              issueId
+              tests(limit: 100) {
+                results {
+                  issueId
+                  jira(fields: ["key"])
+                }
+              }
+            }
+          }
+        }
+      `;
+
+      const response = await axios.post(
+        'https://xray.cloud.getxray.app/api/v2/graphql',
+        { query },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 30000,
+        }
+      );
+
+      if (response.data.errors) {
+        throw new Error(`GraphQL errors: ${JSON.stringify(response.data.errors)}`);
+      }
+
+      const results = response.data.data.getTestPlans?.results || [];
+      if (results.length === 0) return [];
+
+      const tests = results[0].tests?.results || [];
+      return tests.map((t: any) => {
+        const jira = typeof t.jira === 'string' ? JSON.parse(t.jira) : t.jira;
+        return jira?.key || t.issueId;
+      });
+    } catch (error: any) {
+      console.error(`Failed to fetch test plan tests for ${testPlanKey}:`, error.message);
+      if (error.response?.status === 401) {
+        this.token = null;
+      }
+      throw error;
+    }
+  }
+
+  // Get test set associated tests via GraphQL
+  public async getTestSetTests(testSetKey: string): Promise<string[]> {
+    const token = await this.authenticate();
+
+    try {
+      const query = `
+        query {
+          getTestSets(jql: ${JSON.stringify(`key = ${testSetKey}`)}, limit: 1) {
+            results {
+              issueId
+              tests(limit: 100) {
+                results {
+                  issueId
+                  jira(fields: ["key"])
+                }
+              }
+            }
+          }
+        }
+      `;
+
+      const response = await axios.post(
+        'https://xray.cloud.getxray.app/api/v2/graphql',
+        { query },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 30000,
+        }
+      );
+
+      if (response.data.errors) {
+        throw new Error(`GraphQL errors: ${JSON.stringify(response.data.errors)}`);
+      }
+
+      const results = response.data.data.getTestSets?.results || [];
+      if (results.length === 0) return [];
+
+      const tests = results[0].tests?.results || [];
+      return tests.map((t: any) => {
+        const jira = typeof t.jira === 'string' ? JSON.parse(t.jira) : t.jira;
+        return jira?.key || t.issueId;
+      });
+    } catch (error: any) {
+      console.error(`Failed to fetch test set tests for ${testSetKey}:`, error.message);
+      if (error.response?.status === 401) {
+        this.token = null;
+      }
+      throw error;
+    }
+  }
+
+  // Add tests to a test execution via GraphQL
+  public async addTestsToTestExecution(
+    execId: string,
+    testIds: string[]
+  ): Promise<any> {
+    const token = await this.authenticate();
+
+    const mutation = `
+      mutation {
+        addTestsToTestExecution(
+          issueId: "${execId}"
+          testIssueIds: [${testIds.map(id => `"${id}"`).join(', ')}]
+        ) {
+          addedTests
+          warning
+        }
+      }
+    `;
+
+    try {
+      const response = await axios.post(
+        'https://xray.cloud.getxray.app/api/v2/graphql',
+        { query: mutation },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 30000,
+        }
+      );
+
+      if (response.data.errors) {
+        throw new Error(`GraphQL errors: ${JSON.stringify(response.data.errors)}`);
+      }
+
+      return response.data.data.addTestsToTestExecution;
+    } catch (error: any) {
+      console.error(`Failed to add tests to execution ${execId}:`, error.message);
+      if (error.response?.status === 401) {
+        this.token = null;
+      }
+      throw error;
+    }
+  }
+
+  // Add test execution to a test plan via GraphQL
+  public async addTestExecutionToTestPlan(
+    planId: string,
+    execIds: string[]
+  ): Promise<any> {
+    const token = await this.authenticate();
+
+    const mutation = `
+      mutation {
+        addTestExecutionsToTestPlan(
+          issueId: "${planId}"
+          testExecIssueIds: [${execIds.map(id => `"${id}"`).join(', ')}]
+        ) {
+          addedTestExecutions
+          warning
+        }
+      }
+    `;
+
+    try {
+      const response = await axios.post(
+        'https://xray.cloud.getxray.app/api/v2/graphql',
+        { query: mutation },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 30000,
+        }
+      );
+
+      if (response.data.errors) {
+        throw new Error(`GraphQL errors: ${JSON.stringify(response.data.errors)}`);
+      }
+
+      return response.data.data.addTestExecutionsToTestPlan;
+    } catch (error: any) {
+      console.error(`Failed to add executions to plan ${planId}:`, error.message);
+      if (error.response?.status === 401) {
+        this.token = null;
+      }
+      throw error;
+    }
+  }
+
+  // Add test environments to a test execution via GraphQL
+  public async addTestEnvironments(
+    execId: string,
+    environments: string[]
+  ): Promise<any> {
+    const token = await this.authenticate();
+
+    const mutation = `
+      mutation {
+        addTestEnvironmentsToTestExecution(
+          issueId: "${execId}"
+          testEnvironments: [${environments.map(e => `"${e}"`).join(', ')}]
+        ) {
+          addedTestEnvironments
+          warning
+        }
+      }
+    `;
+
+    try {
+      const response = await axios.post(
+        'https://xray.cloud.getxray.app/api/v2/graphql',
+        { query: mutation },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 30000,
+        }
+      );
+
+      if (response.data.errors) {
+        throw new Error(`GraphQL errors: ${JSON.stringify(response.data.errors)}`);
+      }
+
+      return response.data.data.addTestEnvironmentsToTestExecution;
+    } catch (error: any) {
+      console.error(`Failed to add environments to execution ${execId}:`, error.message);
+      if (error.response?.status === 401) {
+        this.token = null;
+      }
+      throw error;
+    }
+  }
+
+  // Get test run ID for a specific test within an execution
+  // Note: getTestRun requires numeric Jira issue IDs, not keys
+  public async getTestRunId(testExecKey: string, testKey: string, axiosInstance?: AxiosInstance): Promise<string | null> {
+    const token = await this.authenticate();
+
+    try {
+      // Resolve keys to numeric IDs if they look like keys (contain letters)
+      let testIssueId = testKey;
+      let testExecIssueId = testExecKey;
+      if (axiosInstance && /[A-Za-z]/.test(testKey)) {
+        testIssueId = await this.resolveIssueId(axiosInstance, testKey);
+      }
+      if (axiosInstance && /[A-Za-z]/.test(testExecKey)) {
+        testExecIssueId = await this.resolveIssueId(axiosInstance, testExecKey);
+      }
+
+      const query = `
+        query {
+          getTestRun(testIssueId: ${JSON.stringify(testIssueId)}, testExecIssueId: ${JSON.stringify(testExecIssueId)}) {
+            id
+            status { name }
+          }
+        }
+      `;
+
+      const response = await axios.post(
+        'https://xray.cloud.getxray.app/api/v2/graphql',
+        { query },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 30000,
+        }
+      );
+
+      if (response.data.errors) {
+        throw new Error(`GraphQL errors: ${JSON.stringify(response.data.errors)}`);
+      }
+
+      return response.data.data.getTestRun?.id || null;
+    } catch (error: any) {
+      console.error(`Failed to get test run for ${testKey} in ${testExecKey}:`, error.message);
+      if (error.response?.status === 401) {
+        this.token = null;
+      }
+      throw error;
+    }
+  }
+
+  // Update test run status via GraphQL
+  public async updateTestRunStatus(
+    testRunId: string,
+    status: string
+  ): Promise<any> {
+    const token = await this.authenticate();
+
+    const mutation = `
+      mutation {
+        updateTestRunStatus(
+          id: "${testRunId}"
+          status: ${JSON.stringify(status)}
+        )
+      }
+    `;
+
+    try {
+      const response = await axios.post(
+        'https://xray.cloud.getxray.app/api/v2/graphql',
+        { query: mutation },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 30000,
+        }
+      );
+
+      if (response.data.errors) {
+        throw new Error(`GraphQL errors: ${JSON.stringify(response.data.errors)}`);
+      }
+
+      return response.data.data.updateTestRunStatus;
+    } catch (error: any) {
+      console.error(`Failed to update test run ${testRunId}:`, error.message);
+      if (error.response?.status === 401) {
+        this.token = null;
+      }
+      throw error;
+    }
+  }
+
+  // Update test run comment via GraphQL
+  public async updateTestRunComment(
+    testRunId: string,
+    comment: string
+  ): Promise<any> {
+    const token = await this.authenticate();
+
+    const mutation = `
+      mutation {
+        updateTestRunComment(
+          id: "${testRunId}"
+          comment: ${JSON.stringify(comment)}
+        )
+      }
+    `;
+
+    try {
+      const response = await axios.post(
+        'https://xray.cloud.getxray.app/api/v2/graphql',
+        { query: mutation },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 30000,
+        }
+      );
+
+      if (response.data.errors) {
+        throw new Error(`GraphQL errors: ${JSON.stringify(response.data.errors)}`);
+      }
+
+      return response.data.data.updateTestRunComment;
+    } catch (error: any) {
+      console.error(`Failed to update test run comment ${testRunId}:`, error.message);
+      if (error.response?.status === 401) {
+        this.token = null;
+      }
+      throw error;
+    }
+  }
+
+  // Add defects to a test run via GraphQL
+  public async addDefectsToTestRun(
+    testRunId: string,
+    defectKeys: string[]
+  ): Promise<any> {
+    const token = await this.authenticate();
+
+    const mutation = `
+      mutation {
+        addDefectsToTestRun(
+          id: "${testRunId}"
+          issues: [${defectKeys.map(k => `"${k}"`).join(', ')}]
+        ) {
+          addedDefects
+          warning
+        }
+      }
+    `;
+
+    try {
+      const response = await axios.post(
+        'https://xray.cloud.getxray.app/api/v2/graphql',
+        { query: mutation },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 30000,
+        }
+      );
+
+      if (response.data.errors) {
+        throw new Error(`GraphQL errors: ${JSON.stringify(response.data.errors)}`);
+      }
+
+      return response.data.data.addDefectsToTestRun;
+    } catch (error: any) {
+      console.error(`Failed to add defects to test run ${testRunId}:`, error.message);
       if (error.response?.status === 401) {
         this.token = null;
       }
