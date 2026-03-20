@@ -111,6 +111,10 @@ import {
 // Test Steps
 import { addTestStep, addTestStepTool } from './tools/tests/addTestStep.js';
 import {
+  addMultipleTestSteps,
+  addMultipleTestStepsTool,
+} from './tools/tests/addMultipleTestSteps.js';
+import {
   updateTestStep,
   updateTestStepTool,
 } from './tools/tests/updateTestStep.js';
@@ -217,6 +221,7 @@ class XrayMCPServer {
         importFeatureFileTool,
         // Test Steps
         addTestStepTool,
+        addMultipleTestStepsTool,
         updateTestStepTool,
         removeTestStepTool,
         // Search
@@ -276,6 +281,7 @@ class XrayMCPServer {
           import_feature_file: importFeatureFile,
           // Test Steps
           add_test_step: addTestStep,
+          add_multiple_test_steps: addMultipleTestSteps,
           update_test_step: updateTestStep,
           remove_test_step: removeTestStep,
           // Search
