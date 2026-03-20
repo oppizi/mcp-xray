@@ -16,6 +16,7 @@ import { getTest, getTestTool } from './tools/tests/getTest.js';
 import { getTestWithSteps, getTestWithStepsTool } from './tools/tests/getTestWithSteps.js';
 import { createTest, createTestTool } from './tools/tests/createTest.js';
 import { updateTest, updateTestTool } from './tools/tests/updateTest.js';
+import { addTestSteps, addTestStepsTool } from './tools/tests/addTestSteps.js';
 
 // Test Executions
 import {
@@ -151,6 +152,7 @@ class XrayMCPServer {
         getTestWithStepsTool,
         createTestTool,
         updateTestTool,
+        addTestStepsTool,
         // Test Executions
         listTestExecutionsTool,
         getTestExecutionTool,
@@ -197,6 +199,7 @@ class XrayMCPServer {
           get_test_with_steps: getTestWithSteps,
           create_test: createTest,
           update_test: updateTest,
+          add_test_steps: addTestSteps,
           // Test Executions
           list_test_executions: listTestExecutions,
           get_test_execution: getTestExecution,

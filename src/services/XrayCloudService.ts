@@ -199,6 +199,129 @@ export class XrayCloudService {
     }
   }
 
+  // Introspect a specific mutation to discover its signature
+  public async introspectMutation(mutationName: string): Promise<any> {
+    const token = await this.authenticate();
+
+    const query = `
+      {
+        __type(name: "Mutation") {
+          fields {
+            name
+            args {
+              name
+              type {
+                name
+                kind
+                ofType {
+                  name
+                  kind
+                  ofType {
+                    name
+                    kind
+                  }
+                }
+              }
+            }
+            type {
+              name
+              kind
+              fields {
+                name
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    const response = await axios.post(
+      'https://xray.cloud.getxray.app/api/v2/graphql',
+      { query },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        timeout: 30000,
+      }
+    );
+
+    const fields = response.data.data.__type.fields;
+    return fields.filter((f: any) =>
+      f.name.toLowerCase().includes(mutationName.toLowerCase())
+    );
+  }
+
+  // Resolve a Jira issue key (e.g., PAD-29856) to its numeric ID (e.g., 56165)
+  // The addTestStep mutation requires the numeric ID, not the key
+  public async resolveIssueId(issueKey: string, axiosInstance: any): Promise<string> {
+    // If it's already numeric, return as-is
+    if (/^\d+$/.test(issueKey)) return issueKey;
+
+    const response = await axiosInstance.get(`/rest/api/3/issue/${issueKey}`, {
+      params: { fields: 'summary' },
+    });
+    return response.data.id;
+  }
+
+  // Add test steps using GraphQL mutations (one step at a time)
+  public async updateTestSteps(
+    testIssueId: string,
+    steps: Array<{ action: string; data?: string; result?: string }>,
+    axiosInstance?: any
+  ): Promise<any> {
+    const token = await this.authenticate();
+
+    // Resolve key to numeric ID if needed
+    let numericId = testIssueId;
+    if (!/^\d+$/.test(testIssueId) && axiosInstance) {
+      numericId = await this.resolveIssueId(testIssueId, axiosInstance);
+    }
+
+    const addedSteps: any[] = [];
+
+    for (const step of steps) {
+      const mutation = `
+        mutation {
+          addTestStep(
+            issueId: "${numericId}"
+            step: {
+              action: ${JSON.stringify(step.action || '')}
+              data: ${JSON.stringify(step.data || '')}
+              result: ${JSON.stringify(step.result || '')}
+            }
+          ) {
+            id
+            action
+            data
+            result
+          }
+        }
+      `;
+
+      const response = await axios.post(
+        'https://xray.cloud.getxray.app/api/v2/graphql',
+        { query: mutation },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 30000,
+        }
+      );
+
+      if (response.data.errors) {
+        throw new Error(`GraphQL errors: ${JSON.stringify(response.data.errors)}`);
+      }
+
+      addedSteps.push(response.data.data.addTestStep);
+    }
+
+    return { addedOrUpdatedSteps: addedSteps };
+  }
+
   // Import test execution results in Xray JSON format
   public async importExecutionResults(results: any): Promise<any> {
     const token = await this.authenticate();
