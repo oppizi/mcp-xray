@@ -46,7 +46,7 @@ export async function listTests(
     console.error(`Fetching tests for project: ${projectKey}`);
 
     // Build JQL query for Test issue type
-    let jql = `project = ${projectKey} AND issuetype = "Xray Test"`;
+    let jql = `project = ${projectKey} AND issuetype = "Test"`;
 
     if (labels) {
       const labelList = labels.split(',').map((l: string) => l.trim());

@@ -1,34 +1,33 @@
 import { AxiosInstance } from 'axios';
-import { Config, XRAY_CREDENTIALS_SETUP_GUIDE } from '../../types.js';
+import { Config } from '../../types.js';
 import { XrayCloudService } from '../../services/XrayCloudService.js';
 
 export const updateTestStepTool = {
   name: 'update_test_step',
   description:
-    'Update an existing test step in an Xray test case. Use get_test_with_steps first to retrieve step IDs. Only provided fields will be updated. Requires Xray Cloud API credentials.',
+    'Update an existing test step on a manual test case. Use get_test_with_steps first to find the step ID.',
   inputSchema: {
     type: 'object',
     properties: {
       test_key: {
         type: 'string',
-        description: 'Jira issue key of the test (e.g., PAD-29471)',
+        description: 'Test issue key (e.g., PAD-29661)',
       },
       step_id: {
         type: 'string',
-        description:
-          'UUID of the step to update (from get_test_with_steps response)',
+        description: 'The step ID to update (get from get_test_with_steps)',
       },
       action: {
         type: 'string',
-        description: 'Updated action text for the step',
+        description: 'Updated action/step description (optional)',
       },
       data: {
         type: 'string',
-        description: 'Updated test data or preconditions',
+        description: 'Updated test data (optional)',
       },
       result: {
         type: 'string',
-        description: 'Updated expected result',
+        description: 'Updated expected result (optional)',
       },
     },
     required: ['test_key', 'step_id'],
@@ -41,10 +40,20 @@ export async function updateTestStep(
   args: any
 ): Promise<{ content: Array<{ type: string; text: string }> }> {
   try {
-    const testKey = args.test_key;
-    const stepId = args.step_id;
+    const { test_key, step_id, action, data, result } = args;
 
-    console.error(`Updating test step ${stepId} on: ${testKey}`);
+    if (!action && !data && !result) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'At least one of action, data, or result must be provided to update.',
+          },
+        ],
+      };
+    }
+
+    console.error(`Updating test step ${step_id} on: ${test_key}`);
 
     const xrayService = XrayCloudService.getInstance(config);
 
@@ -53,30 +62,30 @@ export async function updateTestStep(
         content: [
           {
             type: 'text',
-            text: XRAY_CREDENTIALS_SETUP_GUIDE,
+            text: 'Xray Cloud API credentials not configured. This tool requires XRAY_CLIENT_ID and XRAY_CLIENT_SECRET in .mcp.env.',
           },
         ],
       };
     }
 
-    const stepUpdate: { action?: string; data?: string; result?: string } = {};
-    if (args.action !== undefined) stepUpdate.action = args.action;
-    if (args.data !== undefined) stepUpdate.data = args.data;
-    if (args.result !== undefined) stepUpdate.result = args.result;
+    const stepData: any = {};
+    if (action !== undefined) stepData.action = action;
+    if (data !== undefined) stepData.data = data;
+    if (result !== undefined) stepData.result = result;
 
-    // Xray GraphQL updateTestStep only needs stepId (no issueId)
-    const step = await xrayService.updateTestStep(stepId, stepUpdate);
+    await xrayService.updateTestStep(test_key, step_id, stepData);
 
     return {
       content: [
         {
           type: 'text',
-          text: `Successfully updated test step on ${testKey}
+          text: `Successfully updated step ${step_id} on ${test_key}
 
-**Step ID:** ${step.id}
-**Action:** ${step.action}
-${step.data ? `**Data:** ${step.data}` : ''}
-${step.result ? `**Expected Result:** ${step.result}` : ''}`,
+${action ? `**Action:** ${action}` : ''}
+${data ? `**Data:** ${data}` : ''}
+${result ? `**Expected Result:** ${result}` : ''}
+
+View at: ${config.JIRA_BASE_URL}/browse/${test_key}`,
         },
       ],
     };
@@ -87,7 +96,9 @@ ${step.result ? `**Expected Result:** ${step.result}` : ''}`,
         {
           type: 'text',
           text: `Error updating test step: ${
-            error.message || 'Unknown error'
+            error.response?.data?.errors
+              ? JSON.stringify(error.response.data.errors)
+              : error.message || 'Unknown error'
           }`,
         },
       ],

@@ -1,15 +1,11 @@
 import { AxiosInstance } from 'axios';
 import { Config } from '../../types.js';
-import {
-  createXrayIssue,
-  parseCommaSeparated,
-  formatJiraError,
-} from '../../utils/jiraHelpers.js';
+import { XrayCloudService } from '../../services/XrayCloudService.js';
 
 export const createPreconditionTool = {
   name: 'create_precondition',
   description:
-    'Create a new Xray Precondition issue in Jira. Preconditions define setup requirements that must be met before a test can run (e.g., "User must be logged in", "Database seeded with test data"). Preconditions can be linked to multiple tests.',
+    'Create a new Precondition issue in Jira (Xray issue type). Preconditions define setup steps shared across multiple test cases.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -19,21 +15,26 @@ export const createPreconditionTool = {
       },
       summary: {
         type: 'string',
-        description: 'Precondition name/summary',
+        description: 'Precondition title/summary',
       },
       description: {
         type: 'string',
-        description: 'Detailed precondition description',
+        description: 'Precondition description (optional)',
       },
       precondition_type: {
         type: 'string',
-        description: 'Precondition type: Manual or Cucumber (default: Manual)',
+        description:
+          'Precondition type: Manual or Cucumber (default: Manual)',
         enum: ['Manual', 'Cucumber'],
-        default: 'Manual',
+      },
+      definition: {
+        type: 'string',
+        description:
+          'Precondition definition/steps text. For Manual type, plain text steps. For Cucumber, Given/When/Then syntax.',
       },
       labels: {
         type: 'string',
-        description: 'Comma-separated labels to apply',
+        description: 'Comma-separated labels (optional)',
       },
     },
     required: ['project_key', 'summary'],
@@ -46,29 +47,101 @@ export async function createPrecondition(
   args: any
 ): Promise<{ content: Array<{ type: string; text: string }> }> {
   try {
-    const labels = args.labels ? parseCommaSeparated(args.labels) : [];
-
-    console.error(`Creating precondition in project: ${args.project_key}`);
-
-    const issue = await createXrayIssue(axiosInstance, config, {
-      projectKey: args.project_key,
-      issueTypeName: ['Pre-Condition', 'Precondition'],
-      summary: args.summary,
-      description: args.description,
+    const {
+      project_key,
+      summary,
+      description = '',
+      precondition_type = 'Manual',
+      definition,
       labels,
-    });
+    } = args;
+
+    console.error(`Creating precondition in project: ${project_key}`);
+
+    // Get issue type ID for Precondition
+    const issueTypesResponse = await axiosInstance.get(
+      `/rest/api/3/issue/createmeta`,
+      {
+        params: {
+          projectKeys: project_key,
+          expand: 'projects.issuetypes.fields',
+        },
+      }
+    );
+
+    const project = issueTypesResponse.data.projects[0];
+    const preconditionType = project.issuetypes.find(
+      (type: any) => type.name === 'Precondition'
+    );
+
+    if (!preconditionType) {
+      throw new Error(
+        `Precondition issue type not found in project ${project_key}. Make sure Xray is installed.`
+      );
+    }
+
+    const issueData: any = {
+      fields: {
+        project: { key: project_key },
+        summary,
+        issuetype: { id: preconditionType.id },
+      },
+    };
+
+    if (description) {
+      issueData.fields.description = {
+        type: 'doc',
+        version: 1,
+        content: [
+          {
+            type: 'paragraph',
+            content: [{ type: 'text', text: description }],
+          },
+        ],
+      };
+    }
+
+    if (labels) {
+      issueData.fields.labels = labels
+        .split(',')
+        .map((l: string) => l.trim());
+    }
+
+    const response = await axiosInstance.post('/rest/api/3/issue', issueData);
+    const key = response.data.key;
+
+    // Set precondition type and definition via Xray Cloud GraphQL if configured
+    if (definition) {
+      try {
+        const xrayService = XrayCloudService.getInstance(config);
+        if (xrayService.isConfigured()) {
+          const issueId = await xrayService.resolveIssueId(axiosInstance, key);
+          await xrayService.updatePreconditionDefinition(
+            issueId,
+            precondition_type,
+            definition
+          );
+        } else {
+          console.error('Xray Cloud API not configured — precondition definition not set.');
+        }
+      } catch (defError: any) {
+        console.error('Could not set precondition definition:', defError.message);
+      }
+    }
 
     return {
       content: [
         {
           type: 'text',
-          text: `Successfully created precondition: ${issue.key}
+          text: `Successfully created precondition: ${key}
 
-**Summary:** ${args.summary}
-**Project:** ${args.project_key}
-${labels.length > 0 ? `**Labels:** ${labels.join(', ')}` : ''}
+**Summary:** ${summary}
+**Project:** ${project_key}
+**Type:** ${precondition_type}
+${definition ? `**Definition:** Set via Xray API` : ''}
+${labels ? `**Labels:** ${labels}` : ''}
 
-View at: ${issue.url}`,
+View at: ${config.JIRA_BASE_URL}/browse/${key}`,
         },
       ],
     };
@@ -78,7 +151,12 @@ View at: ${issue.url}`,
       content: [
         {
           type: 'text',
-          text: `Error creating precondition: ${formatJiraError(error)}`,
+          text: `Error creating precondition: ${
+            error.response?.data?.errorMessages?.[0] ||
+            (error.response?.data?.errors
+              ? JSON.stringify(error.response.data.errors)
+              : error.message || 'Unknown error')
+          }`,
         },
       ],
     };

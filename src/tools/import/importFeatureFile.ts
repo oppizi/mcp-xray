@@ -1,5 +1,5 @@
 import { AxiosInstance } from 'axios';
-import { Config, XRAY_CREDENTIALS_SETUP_GUIDE } from '../../types.js';
+import { Config } from '../../types.js';
 import { XrayCloudService } from '../../services/XrayCloudService.js';
 
 export const importFeatureFileTool = {
@@ -11,6 +11,10 @@ export const importFeatureFileTool = {
       feature_content: {
         type: 'string',
         description: 'Content of the .feature file (Gherkin syntax)',
+      },
+      project_key: {
+        type: 'string',
+        description: 'Jira project key (e.g., PAD). Required if not using test_execution_key.',
       },
     },
     required: ['feature_content'],
@@ -30,11 +34,17 @@ export async function importFeatureFile(
     
     if (!xrayService.isConfigured()) {
       throw new Error(
-        XRAY_CREDENTIALS_SETUP_GUIDE
+        'Xray Cloud API credentials not configured.\n\n' +
+        'To set up Xray Cloud API access:\n' +
+        '1. Ask Natalia (QA Lead) for Xray Cloud API credentials (Client ID + Secret)\n' +
+        '2. Add them to your .mcp.env file:\n' +
+        '   XRAY_CLIENT_ID=\'your_client_id\'\n' +
+        '   XRAY_CLIENT_SECRET=\'your_client_secret\'\n' +
+        '3. Restart Claude Code to pick up the new credentials'
       );
     }
 
-    const response = await xrayService.importFeatureFile(featureContent);
+    const response = await xrayService.importFeatureFile(featureContent, args.project_key);
 
     let output = '**Feature File Imported Successfully**\n\n';
     
