@@ -53,12 +53,34 @@ import {
   addTestsToTestPlanTool,
 } from './tools/test-plans/addTestsToTestPlan.js';
 
+// Test Steps
+import { addTestStep, addTestStepTool } from './tools/tests/addTestStep.js';
+import { updateTestStep, updateTestStepTool } from './tools/tests/updateTestStep.js';
+import { removeTestStep, removeTestStepTool } from './tools/tests/removeTestStep.js';
+import { searchTests, searchTestsTool } from './tools/tests/searchTests.js';
+import { updateGherkin, updateGherkinTool } from './tools/tests/updateGherkin.js';
+
 // Test Sets
 import {
   listTestSets,
   listTestSetsTool,
 } from './tools/test-sets/listTestSets.js';
 import { getTestSet, getTestSetTool } from './tools/test-sets/getTestSet.js';
+import { createTestSet, createTestSetTool } from './tools/test-sets/createTestSet.js';
+import {
+  addTestsToTestSet,
+  addTestsToTestSetTool,
+} from './tools/test-sets/addTestsToTestSet.js';
+
+// Preconditions
+import {
+  createPrecondition,
+  createPreconditionTool,
+} from './tools/preconditions/createPrecondition.js';
+import {
+  addPreconditionToTest,
+  addPreconditionToTestTool,
+} from './tools/preconditions/addPreconditionToTest.js';
 
 // Import Operations
 import {
@@ -161,9 +183,20 @@ class XrayMCPServer {
         getTestPlanTool,
         createTestPlanTool,
         addTestsToTestPlanTool,
+        // Test Steps & Search
+        addTestStepTool,
+        updateTestStepTool,
+        removeTestStepTool,
+        searchTestsTool,
+        updateGherkinTool,
         // Test Sets
         listTestSetsTool,
         getTestSetTool,
+        createTestSetTool,
+        addTestsToTestSetTool,
+        // Preconditions
+        createPreconditionTool,
+        addPreconditionToTestTool,
         // Import Operations
         importExecutionResultsTool,
         importCucumberResultsTool,
@@ -207,9 +240,20 @@ class XrayMCPServer {
           get_test_plan: getTestPlan,
           create_test_plan: createTestPlan,
           add_tests_to_test_plan: addTestsToTestPlan,
+          // Test Steps & Search
+          add_test_step: addTestStep,
+          update_test_step: updateTestStep,
+          remove_test_step: removeTestStep,
+          search_tests: searchTests,
+          update_gherkin: updateGherkin,
           // Test Sets
           list_test_sets: listTestSets,
           get_test_set: getTestSet,
+          create_test_set: createTestSet,
+          add_tests_to_test_set: addTestsToTestSet,
+          // Preconditions
+          create_precondition: createPrecondition,
+          add_precondition_to_test: addPreconditionToTest,
           // Import Operations
           import_execution_results: importExecutionResults,
           import_cucumber_results: importCucumberResults,
