@@ -1,5 +1,6 @@
 import { AxiosInstance } from 'axios';
 import { Config, TestStatus } from '../../types.js';
+import { XrayCloudService } from '../../services/XrayCloudService.js';
 
 export const updateTestRunTool = {
   name: 'update_test_run',
@@ -18,7 +19,7 @@ export const updateTestRunTool = {
       status: {
         type: 'string',
         description: 'Test run status',
-        enum: ['PASS', 'FAIL', 'TODO', 'EXECUTING', 'ABORTED'],
+        enum: ['PASSED', 'FAILED', 'TO DO', 'EXECUTING', 'KNOWN_ISSUE', 'BLOCKED', 'SKIPPED'],
       },
       comment: {
         type: 'string',
@@ -51,24 +52,45 @@ export async function updateTestRun(
       `Updating test run for ${testKey} in execution ${testExecutionKey}`
     );
 
-    // Build the update payload
-    const updateData: any = {
-      status: status,
-    };
+    // Use Xray Cloud GraphQL API to update the test run
+    const xrayService = XrayCloudService.getInstance(config);
 
+    if (!xrayService.isConfigured()) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'Xray Cloud API credentials not configured. This tool requires XRAY_CLIENT_ID and XRAY_CLIENT_SECRET in .mcp.env.',
+          },
+        ],
+      };
+    }
+
+    // Get the test run ID first (pass axiosInstance to resolve keys to numeric IDs)
+    const testRunId = await xrayService.getTestRunId(testExecutionKey, testKey, axiosInstance);
+    if (!testRunId) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `No test run found for test ${testKey} in execution ${testExecutionKey}. Make sure the test is part of this execution.`,
+          },
+        ],
+      };
+    }
+
+    // Update status
+    await xrayService.updateTestRunStatus(testRunId, status);
+
+    // Update comment if provided
     if (comment) {
-      updateData.comment = comment;
+      await xrayService.updateTestRunComment(testRunId, comment);
     }
 
+    // Add defects if provided
     if (defects.length > 0) {
-      updateData.defects = defects;
+      await xrayService.addDefectsToTestRun(testRunId, defects);
     }
-
-    // Update the test run using Xray API
-    await axiosInstance.put(
-      `/rest/raven/1.0/api/testexec/${testExecutionKey}/test/${testKey}/status`,
-      updateData
-    );
 
     return {
       content: [

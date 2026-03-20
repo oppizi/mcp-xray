@@ -35,7 +35,7 @@ export async function listTestSets(
     console.error(`Fetching test sets for project: ${projectKey}`);
 
     // Build JQL query for Test Set issue type
-    const jql = `project = ${projectKey} AND issuetype = "Xray Test Set" ORDER BY created DESC`;
+    const jql = `project = ${projectKey} AND issuetype = "Test Set" ORDER BY created DESC`;
 
     const response = await axiosInstance.post<JiraSearchResponse>(
       '/rest/api/3/search/jql',

@@ -1,5 +1,6 @@
 import { AxiosInstance } from 'axios';
 import { Config, JiraIssue } from '../../types.js';
+import { XrayCloudService } from '../../services/XrayCloudService.js';
 
 export const createTestTool = {
   name: 'create_test',
@@ -129,15 +130,18 @@ export async function createTest(
 
     const testKey = response.data.key;
 
-    // Set test type using Xray API if not Manual (Manual is default)
+    // Set test type using Xray Cloud GraphQL if not Manual (Manual is default)
     if (testType !== 'Manual') {
       try {
-        await axiosInstance.put(`/rest/raven/1.0/api/test/${testKey}`, {
-          testType: testType,
-        });
+        const xrayService = XrayCloudService.getInstance(config);
+        if (xrayService.isConfigured()) {
+          const issueId = await xrayService.resolveIssueId(axiosInstance, testKey);
+          await xrayService.updateTestType(issueId, testType);
+        } else {
+          console.error('Xray Cloud API not configured — test type not set.');
+        }
       } catch (typeError) {
         console.error('Could not set test type:', typeError);
-        // Continue anyway, test is created
       }
     }
 
@@ -165,10 +169,9 @@ View at: ${config.JIRA_BASE_URL}/browse/${testKey}`,
           type: 'text',
           text: `Error creating test: ${
             error.response?.data?.errorMessages?.[0] ||
-            error.response?.data?.errors
+            (error.response?.data?.errors
               ? JSON.stringify(error.response.data.errors)
-              : error.message ||
-                'Unknown error'
+              : error.message || 'Unknown error')
           }`,
         },
       ],

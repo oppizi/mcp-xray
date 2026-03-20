@@ -1,22 +1,21 @@
 import { AxiosInstance } from 'axios';
-import { Config, XRAY_CREDENTIALS_SETUP_GUIDE } from '../../types.js';
+import { Config } from '../../types.js';
 import { XrayCloudService } from '../../services/XrayCloudService.js';
 
 export const removeTestStepTool = {
   name: 'remove_test_step',
   description:
-    'Remove a test step from an Xray test case. Use get_test_with_steps first to retrieve step IDs. This action cannot be undone. Requires Xray Cloud API credentials.',
+    'Remove a test step from a manual test case. Use get_test_with_steps first to find the step ID.',
   inputSchema: {
     type: 'object',
     properties: {
       test_key: {
         type: 'string',
-        description: 'Jira issue key of the test (e.g., PAD-29471)',
+        description: 'Test issue key (e.g., PAD-29661)',
       },
       step_id: {
         type: 'string',
-        description:
-          'UUID of the step to remove (from get_test_with_steps response)',
+        description: 'The step ID to remove (get from get_test_with_steps)',
       },
     },
     required: ['test_key', 'step_id'],
@@ -29,10 +28,9 @@ export async function removeTestStep(
   args: any
 ): Promise<{ content: Array<{ type: string; text: string }> }> {
   try {
-    const testKey = args.test_key;
-    const stepId = args.step_id;
+    const { test_key, step_id } = args;
 
-    console.error(`Removing test step ${stepId} from: ${testKey}`);
+    console.error(`Removing test step ${step_id} from: ${test_key}`);
 
     const xrayService = XrayCloudService.getInstance(config);
 
@@ -41,22 +39,21 @@ export async function removeTestStep(
         content: [
           {
             type: 'text',
-            text: XRAY_CREDENTIALS_SETUP_GUIDE,
+            text: 'Xray Cloud API credentials not configured. This tool requires XRAY_CLIENT_ID and XRAY_CLIENT_SECRET in .mcp.env.',
           },
         ],
       };
     }
 
-    // Xray GraphQL removeTestStep only needs stepId (no issueId)
-    await xrayService.removeTestStep(stepId);
+    await xrayService.removeTestStep(test_key, step_id);
 
     return {
       content: [
         {
           type: 'text',
-          text: `Successfully removed test step from ${testKey}
+          text: `Successfully removed step ${step_id} from ${test_key}
 
-**Removed Step ID:** ${stepId}`,
+View at: ${config.JIRA_BASE_URL}/browse/${test_key}`,
         },
       ],
     };
@@ -67,7 +64,9 @@ export async function removeTestStep(
         {
           type: 'text',
           text: `Error removing test step: ${
-            error.message || 'Unknown error'
+            error.response?.data?.errors
+              ? JSON.stringify(error.response.data.errors)
+              : error.message || 'Unknown error'
           }`,
         },
       ],

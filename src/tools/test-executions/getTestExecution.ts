@@ -1,5 +1,6 @@
 import { AxiosInstance } from 'axios';
 import { Config, JiraIssue, XrayTestRun } from '../../types.js';
+import { XrayCloudService } from '../../services/XrayCloudService.js';
 
 export const getTestExecutionTool = {
   name: 'get_test_execution',
@@ -39,13 +40,22 @@ export async function getTestExecution(
     const execution = response.data;
     const fields = execution.fields;
 
-    // Try to get test runs from Xray API
-    let testRuns: XrayTestRun[] = [];
+    // Try to get test runs from Xray Cloud GraphQL API
+    let testRuns: any[] = [];
     try {
-      const xrayResponse = await axiosInstance.get(
-        `/rest/raven/1.0/api/testexec/${testExecutionKey}/test`
-      );
-      testRuns = xrayResponse.data;
+      const xrayService = XrayCloudService.getInstance(config);
+      if (xrayService.isConfigured()) {
+        const execData = await xrayService.getTestExecutionDetails(testExecutionKey);
+        if (execData?.testRuns?.results) {
+          testRuns = execData.testRuns.results.map((run: any) => ({
+            testKey: run.test?.jira?.key || run.test?.issueId || 'Unknown',
+            status: run.status?.name || 'Unknown',
+            executedBy: run.executedById || null,
+            comment: run.comment || null,
+            defects: run.defects || [],
+          }));
+        }
+      }
     } catch (runError) {
       console.error('Could not fetch test runs:', runError);
       // Continue without runs

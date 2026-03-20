@@ -1,22 +1,22 @@
 import { AxiosInstance } from 'axios';
-import { Config, XRAY_CREDENTIALS_SETUP_GUIDE } from '../../types.js';
+import { Config } from '../../types.js';
 import { XrayCloudService } from '../../services/XrayCloudService.js';
 
 export const updateGherkinTool = {
   name: 'update_gherkin',
   description:
-    'Update the Gherkin (Cucumber/BDD) definition on an Xray test case. The test must be of type Cucumber. Replaces the entire gherkin definition. Requires Xray Cloud API credentials.',
+    'Update the Gherkin/BDD definition of a Cucumber-type test case. The test must already be of type Cucumber.',
   inputSchema: {
     type: 'object',
     properties: {
       test_key: {
         type: 'string',
-        description: 'Jira issue key of the test (e.g., PAD-29471)',
+        description: 'Test issue key (e.g., PAD-29661)',
       },
       gherkin: {
         type: 'string',
         description:
-          'Full Gherkin feature/scenario definition (e.g., "Given I am on the login page\\nWhen I enter valid credentials\\nThen I should see the dashboard")',
+          'Gherkin definition (Feature/Scenario/Given/When/Then syntax)',
       },
     },
     required: ['test_key', 'gherkin'],
@@ -29,10 +29,9 @@ export async function updateGherkin(
   args: any
 ): Promise<{ content: Array<{ type: string; text: string }> }> {
   try {
-    const testKey = args.test_key;
-    const gherkin = args.gherkin;
+    const { test_key, gherkin } = args;
 
-    console.error(`Updating gherkin definition for: ${testKey}`);
+    console.error(`Updating Gherkin definition for: ${test_key}`);
 
     const xrayService = XrayCloudService.getInstance(config);
 
@@ -41,38 +40,42 @@ export async function updateGherkin(
         content: [
           {
             type: 'text',
-            text: XRAY_CREDENTIALS_SETUP_GUIDE,
+            text: 'Xray Cloud API credentials not configured. This tool requires XRAY_CLIENT_ID and XRAY_CLIENT_SECRET in .mcp.env.',
           },
         ],
       };
     }
 
-    // Resolve Jira key to Xray internal ID
-    const issueId = await xrayService.resolveXrayId(testKey);
+    // Resolve key to numeric ID
+    const issueId = await xrayService.resolveIssueId(axiosInstance, test_key);
 
-    await xrayService.updateGherkin(issueId, gherkin);
+    await xrayService.updateGherkinDefinition(issueId, gherkin);
 
     return {
       content: [
         {
           type: 'text',
-          text: `Successfully updated gherkin definition for ${testKey}
+          text: `Successfully updated Gherkin definition for ${test_key}
 
-**Gherkin:**
+**Definition:**
 \`\`\`gherkin
 ${gherkin}
-\`\`\``,
+\`\`\`
+
+View at: ${config.JIRA_BASE_URL}/browse/${test_key}`,
         },
       ],
     };
   } catch (error: any) {
-    console.error('Error updating gherkin:', error);
+    console.error('Error updating Gherkin definition:', error);
     return {
       content: [
         {
           type: 'text',
-          text: `Error updating gherkin: ${
-            error.message || 'Unknown error'
+          text: `Error updating Gherkin definition: ${
+            error.response?.data?.errors
+              ? JSON.stringify(error.response.data.errors)
+              : error.message || 'Unknown error'
           }`,
         },
       ],
