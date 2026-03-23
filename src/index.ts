@@ -135,6 +135,30 @@ import {
   addPreconditionToTest,
   addPreconditionToTestTool,
 } from './tools/preconditions/addPreconditionToTest.js';
+import {
+  searchPreconditions,
+  searchPreconditionsTool,
+} from './tools/preconditions/searchPreconditions.js';
+import {
+  getPrecondition,
+  getPreconditionTool,
+} from './tools/preconditions/getPrecondition.js';
+import {
+  getTestPreconditions,
+  getTestPreconditionsTool,
+} from './tools/preconditions/getTestPreconditions.js';
+import {
+  updatePrecondition,
+  updatePreconditionTool,
+} from './tools/preconditions/updatePrecondition.js';
+import {
+  removePreconditionFromTest,
+  removePreconditionFromTestTool,
+} from './tools/preconditions/removePreconditionFromTest.js';
+import {
+  addPreconditionToTests,
+  addPreconditionToTestsTool,
+} from './tools/preconditions/addPreconditionToTests.js';
 
 // Export Operations
 import {
@@ -229,6 +253,12 @@ class XrayMCPServer {
         // Preconditions
         createPreconditionTool,
         addPreconditionToTestTool,
+        searchPreconditionsTool,
+        getPreconditionTool,
+        getTestPreconditionsTool,
+        updatePreconditionTool,
+        removePreconditionFromTestTool,
+        addPreconditionToTestsTool,
         // Export Operations
         exportCucumberFeaturesTool,
       ],
@@ -289,6 +319,12 @@ class XrayMCPServer {
           // Preconditions
           create_precondition: createPrecondition,
           add_precondition_to_test: addPreconditionToTest,
+          search_preconditions: searchPreconditions,
+          get_precondition: getPrecondition,
+          get_test_preconditions: getTestPreconditions,
+          update_precondition: updatePrecondition,
+          remove_precondition_from_test: removePreconditionFromTest,
+          add_precondition_to_tests: addPreconditionToTests,
           // Export Operations
           export_cucumber_features: exportCucumberFeatures,
         };
