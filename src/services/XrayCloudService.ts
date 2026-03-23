@@ -711,6 +711,239 @@ export class XrayCloudService {
     }
   }
 
+  // Search preconditions using GraphQL
+  public async searchPreconditions(
+    jql: string,
+    limit: number = 50
+  ): Promise<any> {
+    const token = await this.authenticate();
+
+    const query = `
+      query {
+        getPreconditions(jql: ${JSON.stringify(jql)}, limit: ${limit}) {
+          total
+          results {
+            issueId
+            jira(fields: ["key", "summary", "status", "labels", "created", "updated"])
+            preconditionType {
+              name
+            }
+            definition
+          }
+        }
+      }
+    `;
+
+    try {
+      const response = await axios.post(
+        'https://xray.cloud.getxray.app/api/v2/graphql',
+        { query },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 30000,
+        }
+      );
+
+      if (response.data.errors) {
+        throw new Error(
+          `GraphQL errors: ${JSON.stringify(response.data.errors)}`
+        );
+      }
+
+      return response.data.data.getPreconditions;
+    } catch (error: any) {
+      console.error('Failed to search preconditions:', error.message);
+      if (error.response?.status === 401) {
+        this.token = null;
+      }
+      throw error;
+    }
+  }
+
+  // Get a single precondition by key
+  public async getPrecondition(preconditionKey: string): Promise<any> {
+    const token = await this.authenticate();
+
+    const query = `
+      query {
+        getPreconditions(jql: "key = ${preconditionKey}", limit: 1) {
+          total
+          results {
+            issueId
+            jira(fields: ["key", "summary", "description", "status", "labels", "created", "updated", "assignee", "reporter", "priority"])
+            preconditionType {
+              name
+            }
+            definition
+            tests(limit: 100) {
+              total
+              results {
+                issueId
+                jira(fields: ["key", "summary", "status"])
+                testType {
+                  name
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    try {
+      const response = await axios.post(
+        'https://xray.cloud.getxray.app/api/v2/graphql',
+        { query },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 30000,
+        }
+      );
+
+      if (response.data.errors) {
+        throw new Error(
+          `GraphQL errors: ${JSON.stringify(response.data.errors)}`
+        );
+      }
+
+      const results = response.data.data.getPreconditions?.results || [];
+      return results.length > 0 ? results[0] : null;
+    } catch (error: any) {
+      console.error(`Failed to get precondition ${preconditionKey}:`, error.message);
+      if (error.response?.status === 401) {
+        this.token = null;
+      }
+      throw error;
+    }
+  }
+
+  // Get preconditions linked to a specific test
+  public async getTestPreconditions(testKey: string): Promise<any> {
+    const token = await this.authenticate();
+
+    const query = `
+      query {
+        getTests(jql: "key = ${testKey}", limit: 1) {
+          results {
+            issueId
+            preconditions(limit: 100) {
+              total
+              results {
+                issueId
+                jira(fields: ["key", "summary", "status", "labels"])
+                preconditionType {
+                  name
+                }
+                definition
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    try {
+      const response = await axios.post(
+        'https://xray.cloud.getxray.app/api/v2/graphql',
+        { query },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 30000,
+        }
+      );
+
+      if (response.data.errors) {
+        throw new Error(
+          `GraphQL errors: ${JSON.stringify(response.data.errors)}`
+        );
+      }
+
+      const results = response.data.data.getTests?.results || [];
+      if (results.length === 0) return null;
+      return results[0].preconditions;
+    } catch (error: any) {
+      console.error(`Failed to get preconditions for test ${testKey}:`, error.message);
+      if (error.response?.status === 401) {
+        this.token = null;
+      }
+      throw error;
+    }
+  }
+
+  // Remove a precondition from a test
+  public async removePreconditionFromTest(
+    preconditionId: string,
+    testId: string
+  ): Promise<any> {
+    const token = await this.authenticate();
+
+    const mutation = `
+      mutation {
+        removePreconditionsFromTest(
+          issueId: "${testId}"
+          preconditionIssueIds: ["${preconditionId}"]
+        )
+      }
+    `;
+
+    try {
+      const response = await axios.post(
+        'https://xray.cloud.getxray.app/api/v2/graphql',
+        { query: mutation },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 30000,
+        }
+      );
+
+      if (response.data.errors) {
+        throw new Error(
+          `GraphQL errors: ${JSON.stringify(response.data.errors)}`
+        );
+      }
+
+      return response.data.data.removePreconditionsFromTest;
+    } catch (error: any) {
+      console.error(
+        `Failed to remove precondition ${preconditionId} from test ${testId}:`,
+        error.message
+      );
+      if (error.response?.status === 401) {
+        this.token = null;
+      }
+      throw error;
+    }
+  }
+
+  // Add a precondition to multiple tests at once
+  public async addPreconditionToTests(
+    preconditionId: string,
+    testIds: string[]
+  ): Promise<any[]> {
+    const results: any[] = [];
+    for (const testId of testIds) {
+      try {
+        const result = await this.addPreconditionToTest(preconditionId, testId);
+        results.push({ testId, success: true, result });
+      } catch (error: any) {
+        results.push({ testId, success: false, error: error.message });
+      }
+    }
+    return results;
+  }
+
   // Add tests to a test plan (numeric IDs required)
   public async addTestsToTestPlan(
     planId: string,

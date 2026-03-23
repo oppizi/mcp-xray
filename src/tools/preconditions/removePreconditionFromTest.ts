@@ -2,10 +2,10 @@ import { AxiosInstance } from 'axios';
 import { Config } from '../../types.js';
 import { XrayCloudService } from '../../services/XrayCloudService.js';
 
-export const addPreconditionToTestTool = {
-  name: 'add_precondition_to_test',
+export const removePreconditionFromTestTool = {
+  name: 'remove_precondition_from_test',
   description:
-    'Link a precondition to a test case via the Xray Cloud GraphQL API. The precondition must already exist as a Jira issue.',
+    'Unlink a precondition from a test case. The precondition is not deleted, only the association is removed.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -22,7 +22,7 @@ export const addPreconditionToTestTool = {
   },
 };
 
-export async function addPreconditionToTest(
+export async function removePreconditionFromTest(
   axiosInstance: AxiosInstance,
   config: Config,
   args: any
@@ -31,7 +31,7 @@ export async function addPreconditionToTest(
     const { test_key, precondition_key } = args;
 
     console.error(
-      `Linking precondition ${precondition_key} to test ${test_key}`
+      `Unlinking precondition ${precondition_key} from test ${test_key}`
     );
 
     const xrayService = XrayCloudService.getInstance(config);
@@ -41,38 +41,34 @@ export async function addPreconditionToTest(
         content: [
           {
             type: 'text',
-            text: 'Xray Cloud API credentials not configured. This tool requires XRAY_CLIENT_ID and XRAY_CLIENT_SECRET in .mcp.env.',
+            text: 'Xray Cloud API credentials not configured. This tool requires XRAY_CLIENT_ID and XRAY_CLIENT_SECRET.',
           },
         ],
       };
     }
 
-    // Resolve keys to numeric IDs (GraphQL mutations require numeric IDs)
     const [testId, preconditionId] = await Promise.all([
       xrayService.resolveIssueId(axiosInstance, test_key),
       xrayService.resolveIssueId(axiosInstance, precondition_key),
     ]);
 
-    await xrayService.addPreconditionToTest(preconditionId, testId);
+    await xrayService.removePreconditionFromTest(preconditionId, testId);
 
     return {
       content: [
         {
           type: 'text',
-          text: `Successfully linked precondition ${precondition_key} to test ${test_key}
-
-View test: ${config.JIRA_BASE_URL}/browse/${test_key}
-View precondition: ${config.JIRA_BASE_URL}/browse/${precondition_key}`,
+          text: `Successfully unlinked precondition ${precondition_key} from test ${test_key}\n\nView test: ${config.JIRA_BASE_URL}/browse/${test_key}\nView precondition: ${config.JIRA_BASE_URL}/browse/${precondition_key}`,
         },
       ],
     };
   } catch (error: any) {
-    console.error('Error linking precondition:', error);
+    console.error('Error unlinking precondition:', error);
     return {
       content: [
         {
           type: 'text',
-          text: `Error linking precondition: ${
+          text: `Error unlinking precondition: ${
             error.response?.data?.errorMessages?.[0] ||
             (error.response?.data?.errors
               ? JSON.stringify(error.response.data.errors)
