@@ -12,6 +12,11 @@ export const getTestTool = {
         type: 'string',
         description: 'Test issue key (e.g., PROJ-123)',
       },
+      include_links: {
+        type: 'boolean',
+        description: 'Include issue links (test links, relates to, etc.) in the output (default: false)',
+        default: false,
+      },
     },
     required: ['test_key'],
   },
@@ -24,15 +29,19 @@ export async function getTest(
 ): Promise<{ content: Array<{ type: string; text: string }> }> {
   try {
     const testKey = args.test_key;
+    const includeLinks = args.include_links || false;
 
     console.error(`Fetching test details for: ${testKey}`);
 
     // Get the test issue
+    const fieldsParam = 'summary,description,status,priority,labels,components,created,updated,assignee,reporter,issuetype,customfield_*'
+      + (includeLinks ? ',issuelinks' : '');
+
     const response = await axiosInstance.get<JiraIssue>(
       `/rest/api/3/issue/${testKey}`,
       {
         params: {
-          fields: 'summary,description,status,priority,labels,components,created,updated,assignee,reporter,issuetype,customfield_*',
+          fields: fieldsParam,
         },
       }
     );
@@ -97,6 +106,21 @@ ${index + 1}. **Action:** ${step.step}
    **Data:** ${step.data || 'N/A'}
    **Expected Result:** ${step.result || 'N/A'}`;
       });
+    }
+
+    // Add issue links if requested
+    if (includeLinks && fields.issuelinks?.length > 0) {
+      testDetails += '\n\n**Issue Links:**\n';
+      for (const link of fields.issuelinks) {
+        const linkedIssue = link.outwardIssue || link.inwardIssue;
+        const direction = link.outwardIssue ? 'outward' : 'inward';
+        const relation = direction === 'outward' ? link.type?.outward : link.type?.inward;
+        if (linkedIssue) {
+          testDetails += `- ${relation || link.type?.name} → **${linkedIssue.key}** (${linkedIssue.fields?.summary || ''}) [${linkedIssue.fields?.status?.name || ''}]\n`;
+        }
+      }
+    } else if (includeLinks) {
+      testDetails += '\n\n**Issue Links:** None';
     }
 
     return {
