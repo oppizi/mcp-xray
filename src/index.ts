@@ -166,6 +166,46 @@ import {
   exportCucumberFeaturesTool,
 } from './tools/export/exportCucumberFeatures.js';
 
+// Folders
+import {
+  getFolderTree,
+  getFolderTreeTool,
+} from './tools/folders/getFolderTree.js';
+import {
+  getTestsInFolder,
+  getTestsInFolderTool,
+} from './tools/folders/getTestsInFolder.js';
+import {
+  addTestsToFolder,
+  addTestsToFolderTool,
+} from './tools/folders/addTestsToFolder.js';
+import {
+  updatePreconditionFolder,
+  updatePreconditionFolderTool,
+} from './tools/folders/updatePreconditionFolder.js';
+import {
+  moveTestToFolder,
+  moveTestToFolderTool,
+} from './tools/folders/moveTestToFolder.js';
+
+// Jira Operations (also available in mcp-atlassian)
+import {
+  assignTestCase,
+  assignTestCaseTool,
+} from './tools/tests/assignTestCase.js';
+import {
+  transitionTestCase,
+  transitionTestCaseTool,
+} from './tools/tests/transitionTestCase.js';
+import {
+  linkIssues,
+  linkIssuesTool,
+} from './tools/tests/linkIssues.js';
+import {
+  getLinkedTests,
+  getLinkedTestsTool,
+} from './tools/tests/getLinkedTests.js';
+
 class XrayMCPServer {
   private server: Server;
   private config: Config;
@@ -261,6 +301,17 @@ class XrayMCPServer {
         addPreconditionToTestsTool,
         // Export Operations
         exportCucumberFeaturesTool,
+        // Folders
+        getFolderTreeTool,
+        getTestsInFolderTool,
+        addTestsToFolderTool,
+        updatePreconditionFolderTool,
+        moveTestToFolderTool,
+        // Jira Operations
+        assignTestCaseTool,
+        transitionTestCaseTool,
+        linkIssuesTool,
+        getLinkedTestsTool,
       ],
     }));
 
@@ -327,6 +378,17 @@ class XrayMCPServer {
           add_precondition_to_tests: addPreconditionToTests,
           // Export Operations
           export_cucumber_features: exportCucumberFeatures,
+          // Folders
+          get_folder_tree: getFolderTree,
+          get_tests_in_folder: getTestsInFolder,
+          add_tests_to_folder: addTestsToFolder,
+          update_precondition_folder: updatePreconditionFolder,
+          move_test_to_folder: moveTestToFolder,
+          // Jira Operations
+          assign_test_case: assignTestCase,
+          transition_test_case: transitionTestCase,
+          link_issues: linkIssues,
+          get_linked_tests: getLinkedTests,
         };
 
         if (name in handlers) {

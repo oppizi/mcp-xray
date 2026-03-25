@@ -34,8 +34,13 @@ export const createTestTool = {
         type: 'string',
         description: 'Priority name (e.g., High, Medium, Low)',
       },
+      folder_path: {
+        type: 'string',
+        description:
+          'Xray folder path to place the test in (e.g., "/Self-Serve TCs/SFTP/"). Use get_folder_tree to discover valid paths. Required for organized test management.',
+      },
     },
-    required: ['project_key', 'summary'],
+    required: ['project_key', 'summary', 'folder_path'],
   },
 };
 
@@ -130,19 +135,34 @@ export async function createTest(
 
     const testKey = response.data.key;
 
-    // Set test type using Xray Cloud GraphQL if not Manual (Manual is default)
-    if (testType !== 'Manual') {
-      try {
-        const xrayService = XrayCloudService.getInstance(config);
-        if (xrayService.isConfigured()) {
-          const issueId = await xrayService.resolveIssueId(axiosInstance, testKey);
+    // Set test type and folder using Xray Cloud GraphQL
+    const xrayService = XrayCloudService.getInstance(config);
+    let folderResult = '';
+
+    if (xrayService.isConfigured()) {
+      const issueId = await xrayService.resolveIssueId(axiosInstance, testKey);
+
+      // Set test type if not Manual (Manual is default)
+      if (testType !== 'Manual') {
+        try {
           await xrayService.updateTestType(issueId, testType);
-        } else {
-          console.error('Xray Cloud API not configured — test type not set.');
+        } catch (typeError) {
+          console.error('Could not set test type:', typeError);
         }
-      } catch (typeError) {
-        console.error('Could not set test type:', typeError);
       }
+
+      // Place test in folder
+      if (args.folder_path) {
+        try {
+          await xrayService.addTestsToFolder('10001', args.folder_path, [issueId]);
+          folderResult = args.folder_path;
+        } catch (folderError: any) {
+          console.error('Could not place test in folder:', folderError.message);
+          folderResult = `FAILED: ${folderError.message}`;
+        }
+      }
+    } else {
+      console.error('Xray Cloud API not configured — test type and folder not set.');
     }
 
     return {
@@ -150,12 +170,13 @@ export async function createTest(
         {
           type: 'text',
           text: `Successfully created test: ${testKey}
-          
+
 **Summary:** ${summary}
 **Type:** ${testType}
 **Project:** ${projectKey}
 ${labels.length > 0 ? `**Labels:** ${labels.join(', ')}` : ''}
 ${priority ? `**Priority:** ${priority}` : ''}
+${folderResult ? `**Folder:** ${folderResult}` : ''}
 
 View at: ${config.JIRA_BASE_URL}/browse/${testKey}`,
         },

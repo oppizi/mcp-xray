@@ -1682,6 +1682,290 @@ export class XrayCloudService {
     }
   }
 
+  // ── Folder Operations ──────────────────────────────────────────────
+
+  // Get folder tree from Xray repository (Test or Precondition)
+  public async getFolderTree(
+    projectId: string,
+    path: string = '/',
+    repositoryType: 'test' | 'precondition' = 'test'
+  ): Promise<any> {
+    const token = await this.authenticate();
+
+    const queryName = repositoryType === 'precondition' ? 'getPreconditionFolder' : 'getFolder';
+    const query = `
+      query {
+        ${queryName}(projectId: "${projectId}", path: ${JSON.stringify(path)}) {
+          name
+          path
+          testCount
+          folders
+        }
+      }
+    `;
+
+    try {
+      const response = await axios.post(
+        'https://xray.cloud.getxray.app/api/v2/graphql',
+        { query },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 30000,
+        }
+      );
+
+      if (response.data.errors) {
+        throw new Error(
+          `GraphQL errors: ${JSON.stringify(response.data.errors)}`
+        );
+      }
+
+      const data = response.data.data[queryName];
+
+      // folders field is a JSON scalar — parse it
+      if (data && typeof data.folders === 'string') {
+        try {
+          data.folders = JSON.parse(data.folders);
+        } catch {
+          // leave as-is if not valid JSON
+        }
+      }
+
+      return data;
+    } catch (error: any) {
+      console.error(`Failed to get folder tree:`, error.message);
+      if (error.response?.status === 401) {
+        this.token = null;
+      }
+      throw error;
+    }
+  }
+
+  // Get tests in a specific folder
+  public async getTestsInFolder(
+    projectId: string,
+    folderPath: string,
+    options?: { jql?: string; limit?: number; includeSteps?: boolean }
+  ): Promise<any> {
+    const token = await this.authenticate();
+
+    const limit = options?.limit || 50;
+    const jqlFilter = options?.jql ? `, jql: ${JSON.stringify(options.jql)}` : '';
+    const stepsField = options?.includeSteps
+      ? `steps { id action data result }`
+      : '';
+
+    const query = `
+      query {
+        getTests(
+          limit: ${limit}
+          ${jqlFilter}
+          folder: { projectId: "${projectId}", path: ${JSON.stringify(folderPath)} }
+        ) {
+          total
+          results {
+            issueId
+            jira(fields: ["key", "summary", "status", "priority", "labels", "assignee"])
+            testType { name kind }
+            ${stepsField}
+            preconditions(limit: 50) {
+              results {
+                issueId
+                jira(fields: ["key", "summary"])
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    try {
+      const response = await axios.post(
+        'https://xray.cloud.getxray.app/api/v2/graphql',
+        { query },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 30000,
+        }
+      );
+
+      if (response.data.errors) {
+        throw new Error(
+          `GraphQL errors: ${JSON.stringify(response.data.errors)}`
+        );
+      }
+
+      return response.data.data.getTests;
+    } catch (error: any) {
+      console.error(`Failed to get tests in folder:`, error.message);
+      if (error.response?.status === 401) {
+        this.token = null;
+      }
+      throw error;
+    }
+  }
+
+  // Add tests to a folder (numeric issue IDs required)
+  public async addTestsToFolder(
+    projectId: string,
+    path: string,
+    testIssueIds: string[]
+  ): Promise<any> {
+    const token = await this.authenticate();
+
+    const mutation = `
+      mutation {
+        addTestsToFolder(
+          projectId: "${projectId}"
+          path: ${JSON.stringify(path)}
+          testIssueIds: [${testIssueIds.map(id => `"${id}"`).join(', ')}]
+        ) {
+          folder {
+            name
+            path
+          }
+          warnings
+        }
+      }
+    `;
+
+    try {
+      const response = await axios.post(
+        'https://xray.cloud.getxray.app/api/v2/graphql',
+        { query: mutation },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 30000,
+        }
+      );
+
+      if (response.data.errors) {
+        throw new Error(
+          `GraphQL errors: ${JSON.stringify(response.data.errors)}`
+        );
+      }
+
+      return response.data.data.addTestsToFolder;
+    } catch (error: any) {
+      console.error(`Failed to add tests to folder:`, error.message);
+      if (error.response?.status === 401) {
+        this.token = null;
+      }
+      throw error;
+    }
+  }
+
+  // Update a precondition's folder in the Precondition Repository
+  public async updatePreconditionFolder(
+    issueId: string,
+    folderPath: string
+  ): Promise<any> {
+    const token = await this.authenticate();
+
+    const mutation = `
+      mutation {
+        updatePreconditionFolder(
+          issueId: "${issueId}"
+          folder: ${JSON.stringify(folderPath)}
+        ) {
+          issueId
+          folder {
+            name
+            path
+          }
+        }
+      }
+    `;
+
+    try {
+      const response = await axios.post(
+        'https://xray.cloud.getxray.app/api/v2/graphql',
+        { query: mutation },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 30000,
+        }
+      );
+
+      if (response.data.errors) {
+        throw new Error(
+          `GraphQL errors: ${JSON.stringify(response.data.errors)}`
+        );
+      }
+
+      return response.data.data.updatePreconditionFolder;
+    } catch (error: any) {
+      console.error(`Failed to update precondition folder:`, error.message);
+      if (error.response?.status === 401) {
+        this.token = null;
+      }
+      throw error;
+    }
+  }
+
+  // Move a test to a different folder in the Test Repository
+  public async moveTestToFolder(
+    issueId: string,
+    destinationPath: string
+  ): Promise<any> {
+    const token = await this.authenticate();
+
+    const mutation = `
+      mutation {
+        updateTestFolder(
+          issueId: "${issueId}"
+          folder: ${JSON.stringify(destinationPath)}
+        ) {
+          issueId
+          folder {
+            name
+            path
+          }
+        }
+      }
+    `;
+
+    try {
+      const response = await axios.post(
+        'https://xray.cloud.getxray.app/api/v2/graphql',
+        { query: mutation },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 30000,
+        }
+      );
+
+      if (response.data.errors) {
+        throw new Error(
+          `GraphQL errors: ${JSON.stringify(response.data.errors)}`
+        );
+      }
+
+      return response.data.data.updateTestFolder;
+    } catch (error: any) {
+      console.error(`Failed to move test to folder:`, error.message);
+      if (error.response?.status === 401) {
+        this.token = null;
+      }
+      throw error;
+    }
+  }
+
   // Export Cucumber features
   public async exportCucumberFeatures(testKeys?: string[]): Promise<string> {
     const token = await this.authenticate();

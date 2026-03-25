@@ -36,8 +36,13 @@ export const createPreconditionTool = {
         type: 'string',
         description: 'Comma-separated labels (optional)',
       },
+      folder_path: {
+        type: 'string',
+        description:
+          'Xray Precondition Repository folder path. Use get_folder_tree with repository_type="precondition" to discover valid paths.',
+      },
     },
-    required: ['project_key', 'summary'],
+    required: ['project_key', 'summary', 'folder_path'],
   },
 };
 
@@ -110,23 +115,38 @@ export async function createPrecondition(
     const response = await axiosInstance.post('/rest/api/3/issue', issueData);
     const key = response.data.key;
 
-    // Set precondition type and definition via Xray Cloud GraphQL if configured
-    if (definition) {
-      try {
-        const xrayService = XrayCloudService.getInstance(config);
-        if (xrayService.isConfigured()) {
-          const issueId = await xrayService.resolveIssueId(axiosInstance, key);
+    // Set precondition type, definition, and folder via Xray Cloud GraphQL
+    const xrayService = XrayCloudService.getInstance(config);
+    let folderResult = '';
+
+    if (xrayService.isConfigured()) {
+      const issueId = await xrayService.resolveIssueId(axiosInstance, key);
+
+      // Set definition
+      if (definition) {
+        try {
           await xrayService.updatePreconditionDefinition(
             issueId,
             precondition_type,
             definition
           );
-        } else {
-          console.error('Xray Cloud API not configured — precondition definition not set.');
+        } catch (defError: any) {
+          console.error('Could not set precondition definition:', defError.message);
         }
-      } catch (defError: any) {
-        console.error('Could not set precondition definition:', defError.message);
       }
+
+      // Place in folder
+      if (args.folder_path) {
+        try {
+          await xrayService.updatePreconditionFolder(issueId, args.folder_path);
+          folderResult = args.folder_path;
+        } catch (folderError: any) {
+          console.error('Could not place precondition in folder:', folderError.message);
+          folderResult = `FAILED: ${folderError.message}`;
+        }
+      }
+    } else {
+      console.error('Xray Cloud API not configured — precondition definition and folder not set.');
     }
 
     return {
@@ -140,6 +160,7 @@ export async function createPrecondition(
 **Type:** ${precondition_type}
 ${definition ? `**Definition:** Set via Xray API` : ''}
 ${labels ? `**Labels:** ${labels}` : ''}
+${folderResult ? `**Folder:** ${folderResult}` : ''}
 
 View at: ${config.JIRA_BASE_URL}/browse/${key}`,
         },
