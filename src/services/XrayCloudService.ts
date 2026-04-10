@@ -560,6 +560,48 @@ export class XrayCloudService {
     }
   }
 
+  // Remove all test steps from a test definition (test run history is NOT affected)
+  public async removeAllTestSteps(issueId: string): Promise<any> {
+    const token = await this.authenticate();
+
+    const mutation = `
+      mutation {
+        removeAllTestSteps(issueId: "${issueId}")
+      }
+    `;
+
+    try {
+      const response = await axios.post(
+        'https://xray.cloud.getxray.app/api/v2/graphql',
+        { query: mutation },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 30000,
+        }
+      );
+
+      if (response.data.errors) {
+        throw new Error(
+          `GraphQL errors: ${JSON.stringify(response.data.errors)}`
+        );
+      }
+
+      return response.data.data.removeAllTestSteps;
+    } catch (error: any) {
+      console.error(
+        `Failed to remove all test steps from ${issueId}:`,
+        error.message
+      );
+      if (error.response?.status === 401) {
+        this.token = null;
+      }
+      throw error;
+    }
+  }
+
   // Remove a test step
   public async removeTestStep(testKey: string, stepId: string): Promise<any> {
     const token = await this.authenticate();

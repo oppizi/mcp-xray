@@ -149,7 +149,7 @@ ${fields.description?.content?.[0]?.content?.[0]?.text || fields.description || 
         const result = step.result ? processXrayAttachments(step.result) : 'N/A';
         
         testDetails += `
-**Step ${index + 1}:**
+**Step ${index + 1}** (ID: ${testSteps[index].id}):
 - **Action:** ${action}
 - **Data:** ${data}
 - **Expected Result:** ${result}
