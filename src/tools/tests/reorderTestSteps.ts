@@ -5,7 +5,7 @@ import { XrayCloudService } from '../../services/XrayCloudService.js';
 export const reorderTestStepsTool = {
   name: 'reorder_test_steps',
   description:
-    'Reorder test steps on a manual test case. Provide step IDs in the desired order. Use get_test_with_steps to see current steps and IDs. All existing step IDs must be included. Test run history is NOT affected — only the definition template changes.',
+    'Reorder test steps on a manual test case. Provide step IDs in the desired order. Use get_test_with_steps to see current steps and IDs. All existing step IDs must be included — this is a full reorder. Test run execution data (statuses, comments, defects, evidence) is backed up and restored automatically.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -23,6 +23,16 @@ export const reorderTestStepsTool = {
     required: ['test_key', 'step_ids'],
   },
 };
+
+// Per-step execution data from a test run
+interface StepRunData {
+  stepId: string;
+  status: string;
+  comment: string | null;
+  actualResult: string | null;
+  defects: string[] | null;
+  evidence: Array<{ id: string; filename: string; downloadLink: string }>;
+}
 
 export async function reorderTestSteps(
   axiosInstance: AxiosInstance,
@@ -58,7 +68,8 @@ export async function reorderTestSteps(
 
     console.error(`Reordering test steps for: ${test_key}`);
 
-    // Step 1: Fetch current steps with full content
+    // ── Phase 1: Fetch and validate definition steps ──
+
     const xrayTestData = await xrayService.getTestWithSteps(test_key);
     if (!xrayTestData) {
       return {
@@ -68,16 +79,18 @@ export async function reorderTestSteps(
       };
     }
 
-    const currentSteps: Array<{
+    interface DefinitionStep {
       id: string;
       action: string;
       data: string;
       result: string;
-    }> = (xrayTestData.steps || []).map((s: any) => ({
-      id: s.id,
-      action: s.action || '',
-      data: s.data || '',
-      result: s.result || '',
+    }
+
+    const currentSteps: DefinitionStep[] = (xrayTestData.steps || []).map((s: any) => ({
+      id: s.id as string,
+      action: (s.action || '') as string,
+      data: (s.data || '') as string,
+      result: (s.result || '') as string,
     }));
 
     if (currentSteps.length === 0) {
@@ -88,9 +101,8 @@ export async function reorderTestSteps(
       };
     }
 
-    // Step 2: Validate step_ids match current steps exactly
+    // Validate step_ids match current steps exactly
     const currentIds = new Set(currentSteps.map((s) => s.id));
-    const requestedIds = new Set(step_ids);
 
     const missing = step_ids.filter((id: string) => !currentIds.has(id));
     if (missing.length > 0) {
@@ -98,52 +110,136 @@ export async function reorderTestSteps(
         content: [
           {
             type: 'text',
-            text: `Error: These step IDs don't exist on ${test_key}: ${missing.join(', ')}\n\nCurrent step IDs: ${currentSteps.map((s) => s.id).join(', ')}`,
+            text: `Error: These step IDs don't exist on ${test_key}: ${missing.join(', ')}\n\nCurrent step IDs:\n${currentSteps.map((s) => `  ${s.id} — "${s.action}"`).join('\n')}`,
           },
         ],
       };
     }
 
+    const requestedIds = new Set(step_ids);
     const extra = currentSteps.filter((s) => !requestedIds.has(s.id));
     if (extra.length > 0) {
       return {
         content: [
           {
             type: 'text',
-            text: `Error: All existing step IDs must be included. Missing from your list: ${extra.map((s) => `${s.id} ("${s.action}")`).join(', ')}`,
+            text: `Error: All existing step IDs must be included. Missing from your list:\n${extra.map((s) => `  ${s.id} — "${s.action}"`).join('\n')}`,
           },
         ],
       };
     }
 
-    if (step_ids.length !== currentSteps.length) {
-      return {
-        content: [
-          {
-            type: 'text',
-            text: `Error: step_ids count (${step_ids.length}) doesn't match current step count (${currentSteps.length}).`,
-          },
-        ],
-      };
-    }
+    // Build new order from step_ids
+    const stepMap = new Map<string, DefinitionStep>(currentSteps.map((s) => [s.id, s]));
+    const newOrder: DefinitionStep[] = step_ids.map((id: string) => stepMap.get(id)!);
 
-    // Step 3: Build new order from step_ids, looking up content by ID
-    const stepMap = new Map(currentSteps.map((s) => [s.id, s]));
-    const newOrder = step_ids.map((id: string) => stepMap.get(id)!);
+    // ── Phase 2: Backup test run execution data ──
+    // Key insight: test run steps keep their OLD IDs and order forever.
+    // After reorder, we just write the saved data back to the same IDs.
 
-    // Step 4: Log backup to stderr (safety net)
-    console.error(
-      `BACKUP — ${test_key} steps before reorder:\n${JSON.stringify(currentSteps, null, 2)}`
-    );
-
-    // Step 5: Resolve issue ID and remove all steps
     const issueId = await xrayService.resolveIssueId(axiosInstance, test_key);
-    await xrayService.removeAllTestSteps(issueId);
-    console.error(`Removed all steps from ${test_key} (issueId: ${issueId})`);
+    console.error(`Resolved ${test_key} to issueId: ${issueId}`);
 
-    // Step 6: Re-add steps in new order, tracking progress
+    let testRuns: any[] = [];
+    // Map: runId -> stepId -> StepRunData
+    const runBackups = new Map<string, Map<string, StepRunData>>();
+    let runsWithData = 0;
+
+    try {
+      testRuns = await xrayService.getTestRunsForTest(issueId);
+      console.error(`Found ${testRuns.length} test run(s) for ${test_key}`);
+    } catch (e: any) {
+      console.error(`Warning: Could not fetch test runs: ${e.message}. Proceeding without backup.`);
+    }
+
+    for (const run of testRuns) {
+      const stepBackup = new Map<string, StepRunData>();
+      let hasData = false;
+
+      for (const s of (run.steps || []) as any[]) {
+        const data: StepRunData = {
+          stepId: s.id,
+          status: s.status?.name || 'TODO',
+          comment: s.comment || null,
+          actualResult: s.actualResult || null,
+          defects: s.defects || null,
+          evidence: ((s.evidence || []) as any[]).map((e: any) => ({
+            id: e.id,
+            filename: e.filename,
+            downloadLink: e.downloadLink,
+          })),
+        };
+
+        if (data.status !== 'TODO' || data.comment || data.actualResult ||
+            (data.defects && data.defects.length > 0) || data.evidence.length > 0) {
+          hasData = true;
+        }
+
+        stepBackup.set(s.id, data);
+      }
+
+      if (hasData) {
+        runBackups.set(run.id, stepBackup);
+        runsWithData++;
+      }
+    }
+
+    console.error(`${runsWithData}/${testRuns.length} test run(s) have execution data to preserve`);
+
+    // ── Phase 3: Log full backup to stderr ──
+
+    const backupLog = {
+      testKey: test_key,
+      issueId,
+      definitionSteps: currentSteps,
+      testRunBackups: Object.fromEntries(
+        Array.from(runBackups.entries()).map(([runId, steps]) => [
+          runId,
+          Object.fromEntries(steps),
+        ])
+      ),
+    };
+    console.error(`FULL BACKUP:\n${JSON.stringify(backupLog, null, 2)}`);
+
+    // ── Phase 4: Download evidence files before removing steps ──
+
+    // Map: runId -> stepId -> downloaded evidence
+    const evidenceCache = new Map<string, Map<string, Array<{ filename: string; mimeType: string; data: string }>>>();
+    const evidenceWarnings: string[] = [];
+
+    for (const [runId, stepBackup] of runBackups) {
+      const runEvidence = new Map<string, Array<{ filename: string; mimeType: string; data: string }>>();
+
+      for (const [stepId, data] of stepBackup) {
+        if (data.evidence.length > 0) {
+          const downloaded: Array<{ filename: string; mimeType: string; data: string }> = [];
+          for (const ev of data.evidence) {
+            if (ev.downloadLink) {
+              const result = await xrayService.downloadEvidence(ev.downloadLink);
+              if (result) {
+                downloaded.push({ filename: ev.filename, mimeType: result.mimeType, data: result.data });
+              } else {
+                evidenceWarnings.push(`Could not download "${ev.filename}" from run ${runId} step ${stepId}`);
+              }
+            }
+          }
+          if (downloaded.length > 0) {
+            runEvidence.set(stepId, downloaded);
+          }
+        }
+      }
+
+      if (runEvidence.size > 0) {
+        evidenceCache.set(runId, runEvidence);
+      }
+    }
+
+    // ── Phase 5: Remove all steps and re-add in new order ──
+
+    await xrayService.removeAllTestSteps(issueId);
+    console.error(`Removed all definition steps from ${test_key}`);
+
     const addedSteps: Array<{ id: string; action: string }> = [];
-    const failedFrom: number | null = null;
 
     for (let i = 0; i < newOrder.length; i++) {
       const step = newOrder[i];
@@ -155,70 +251,124 @@ export async function reorderTestSteps(
         });
         addedSteps.push({ id: result?.id || 'unknown', action: step.action });
       } catch (addError: any) {
-        // Re-add failed partway — dump remaining steps for manual recovery
         const remaining = newOrder.slice(i);
         const recoveryData = remaining
-          .map(
-            (s, idx) =>
-              `Step ${i + idx + 1}: action=${JSON.stringify(s.action)}, data=${JSON.stringify(s.data)}, result=${JSON.stringify(s.result)}`
-          )
+          .map((s, idx) => `Step ${i + idx + 1}: action=${JSON.stringify(s.action)}, data=${JSON.stringify(s.data)}, result=${JSON.stringify(s.result)}`)
           .join('\n');
 
         return {
-          content: [
-            {
-              type: 'text',
-              text: `Error: Re-add failed at step ${i + 1}/${newOrder.length}. ${addedSteps.length} steps were added successfully.\n\n` +
-                `Error: ${addError.message}\n\n` +
-                `⚠ REMAINING STEPS (add these manually with add_test_step):\n${recoveryData}`,
-            },
-          ],
+          content: [{
+            type: 'text',
+            text: `Error: Re-add failed at step ${i + 1}/${newOrder.length}. ${addedSteps.length} added.\n\n` +
+              `Error: ${addError.message}\n\n` +
+              `⚠ REMAINING STEPS (add manually with add_test_step):\n${recoveryData}\n\n` +
+              `⚠ Test run data was NOT restored. Check stderr for full backup.`,
+          }],
         };
       }
     }
 
-    // Step 7: Verification — fetch steps again and compare
+    // ── Phase 6: Verify definition order ──
+
     console.error('Verifying reorder result...');
     const verifyData = await xrayService.getTestWithSteps(test_key);
     const verifiedSteps = verifyData?.steps || [];
 
     let verificationPassed = true;
-    const issues: string[] = [];
+    const verifyIssues: string[] = [];
 
     if (verifiedSteps.length !== newOrder.length) {
       verificationPassed = false;
-      issues.push(
-        `Expected ${newOrder.length} steps, got ${verifiedSteps.length}`
-      );
+      verifyIssues.push(`Expected ${newOrder.length} steps, got ${verifiedSteps.length}`);
     } else {
       for (let i = 0; i < newOrder.length; i++) {
         if (verifiedSteps[i].action !== newOrder[i].action) {
           verificationPassed = false;
-          issues.push(
-            `Step ${i + 1}: expected "${newOrder[i].action}", got "${verifiedSteps[i].action}"`
-          );
+          verifyIssues.push(`Step ${i + 1}: expected "${newOrder[i].action}", got "${verifiedSteps[i].action}"`);
         }
       }
     }
 
     if (!verificationPassed) {
       return {
-        content: [
-          {
-            type: 'text',
-            text: `⚠ Reorder completed but verification found issues:\n${issues.join('\n')}\n\n` +
-              `The steps were re-added but may not be in the expected order. Check ${config.JIRA_BASE_URL}/browse/${test_key} manually.`,
-          },
-        ],
+        content: [{
+          type: 'text',
+          text: `⚠ Reorder completed but verification failed:\n${verifyIssues.join('\n')}\n\nCheck ${config.JIRA_BASE_URL}/browse/${test_key}. Run data was NOT restored.`,
+        }],
       };
     }
 
-    // Step 8: Success — report new order
+    // ── Phase 7: Restore test run execution data ──
+    // Run steps keep their old IDs — just write saved data back to the same IDs.
+
+    let restoreStats = { runs: 0, steps: 0, evidence: 0, skipped: 0, errors: 0 };
+    const restoreErrors: string[] = [];
+
+    if (runsWithData > 0) {
+      console.error(`Restoring execution data for ${runsWithData} test run(s)...`);
+
+      for (const [runId, stepBackup] of runBackups) {
+        restoreStats.runs++;
+
+        for (const [stepId, data] of stepBackup) {
+          // Skip steps that had no execution data
+          if (data.status === 'TODO' && !data.comment && !data.actualResult &&
+              (!data.defects || data.defects.length === 0) && data.evidence.length === 0) {
+            restoreStats.skipped++;
+            continue;
+          }
+
+          try {
+            // Restore status, comment, actualResult, defects
+            await xrayService.restoreTestRunStep(runId, stepId, {
+              status: data.status,
+              comment: data.comment || undefined,
+              actualResult: data.actualResult || undefined,
+              defects: data.defects || undefined,
+            });
+            restoreStats.steps++;
+
+            // Restore evidence
+            const cachedEvidence = evidenceCache.get(runId)?.get(stepId);
+            if (cachedEvidence && cachedEvidence.length > 0) {
+              await xrayService.restoreTestRunStep(runId, stepId, {
+                evidence: cachedEvidence,
+              });
+              restoreStats.evidence += cachedEvidence.length;
+            }
+          } catch (restoreError: any) {
+            restoreErrors.push(`Run ${runId} step ${stepId}: ${restoreError.message}`);
+            restoreStats.errors++;
+          }
+        }
+      }
+    }
+
+    // ── Phase 8: Report ──
+
     let output = `Successfully reordered ${addedSteps.length} steps on **${test_key}**\n\n`;
     output += '**New order:**\n';
     verifiedSteps.forEach((step: any, idx: number) => {
       output += `${idx + 1}. (ID: ${step.id}) ${step.action}\n`;
     });
+
+    if (runsWithData > 0) {
+      output += `\n**Execution data restored:** ${restoreStats.steps} step(s) across ${restoreStats.runs} run(s)`;
+      if (restoreStats.evidence > 0) output += `, ${restoreStats.evidence} evidence file(s)`;
+      if (restoreStats.skipped > 0) output += ` (${restoreStats.skipped} TODO steps skipped)`;
+      output += '\n';
+    }
+
+    if (restoreErrors.length > 0) {
+      output += `\n⚠ **Restore warnings** (${restoreErrors.length}):\n`;
+      restoreErrors.forEach((e) => (output += `- ${e}\n`));
+    }
+
+    if (evidenceWarnings.length > 0) {
+      output += `\n⚠ **Evidence warnings** (${evidenceWarnings.length}):\n`;
+      evidenceWarnings.forEach((e) => (output += `- ${e}\n`));
+    }
+
     output += `\nView at: ${config.JIRA_BASE_URL}/browse/${test_key}`;
 
     return {
@@ -227,16 +377,14 @@ export async function reorderTestSteps(
   } catch (error: any) {
     console.error('Error reordering test steps:', error);
     return {
-      content: [
-        {
-          type: 'text',
-          text: `Error reordering test steps: ${
-            error.response?.data?.errors
-              ? JSON.stringify(error.response.data.errors)
-              : error.message || 'Unknown error'
-          }`,
-        },
-      ],
+      content: [{
+        type: 'text',
+        text: `Error reordering test steps: ${
+          error.response?.data?.errors
+            ? JSON.stringify(error.response.data.errors)
+            : error.message || 'Unknown error'
+        }`,
+      }],
     };
   }
 }
