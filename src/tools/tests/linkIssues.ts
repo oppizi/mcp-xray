@@ -11,7 +11,7 @@ export const linkIssuesTool = {
       from_key: {
         type: 'string',
         description:
-          'Single source issue key (e.g., PAD-30001). The outward side of the link.',
+          'Source issue key (e.g., PAD-30001). Gets the OUTWARD label — for "Test" links, from_key shows "is tested by".',
       },
       from_keys: {
         type: 'array',
@@ -22,12 +22,12 @@ export const linkIssuesTool = {
       to_key: {
         type: 'string',
         description:
-          'Target issue key (e.g., PAD-12345). The inward side of the link.',
+          'Target issue key (e.g., PAD-12345). Gets the INWARD label — for "Test" links, to_key shows "tests".',
       },
       link_type: {
         type: 'string',
         description:
-          'Link type name. Common types: "Test" (test case → tested issue), "Relates" (general relation), "Duplicate", "Blocks".',
+          'Link type name. Common types: "Test" (from_key "is tested by" to_key — to link TCs to an epic, use from_key=epic, to_key=TC), "Relates", "Duplicate", "Blocks".',
       },
     },
     required: ['to_key', 'link_type'],

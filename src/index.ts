@@ -122,6 +122,10 @@ import {
   removeTestStep,
   removeTestStepTool,
 } from './tools/tests/removeTestStep.js';
+import {
+  reorderTestSteps,
+  reorderTestStepsTool,
+} from './tools/tests/reorderTestSteps.js';
 
 // Search
 import { searchTests, searchTestsTool } from './tools/tests/searchTests.js';
@@ -288,6 +292,7 @@ class XrayMCPServer {
         addMultipleTestStepsTool,
         updateTestStepTool,
         removeTestStepTool,
+        reorderTestStepsTool,
         // Search
         searchTestsTool,
         // Preconditions
@@ -365,6 +370,7 @@ class XrayMCPServer {
           add_multiple_test_steps: addMultipleTestSteps,
           update_test_step: updateTestStep,
           remove_test_step: removeTestStep,
+          reorder_test_steps: reorderTestSteps,
           // Search
           search_tests: searchTests,
           // Preconditions

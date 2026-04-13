@@ -5,7 +5,7 @@ import { XrayCloudService } from '../../services/XrayCloudService.js';
 export const addTestStepTool = {
   name: 'add_test_step',
   description:
-    'Add a test step to an existing manual test case via the Xray Cloud GraphQL API. Requires Xray Cloud credentials.',
+    'Add a test step to an existing manual test case. Step is always appended to the end — there is no position parameter. To insert at a specific position or reorder, use reorder_test_steps. Requires Xray Cloud credentials.',
   inputSchema: {
     type: 'object',
     properties: {

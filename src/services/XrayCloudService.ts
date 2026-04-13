@@ -560,6 +560,208 @@ export class XrayCloudService {
     }
   }
 
+  // Remove all test steps from a test definition (test run history is NOT affected)
+  public async removeAllTestSteps(issueId: string): Promise<any> {
+    const token = await this.authenticate();
+
+    const mutation = `
+      mutation {
+        removeAllTestSteps(issueId: "${issueId}")
+      }
+    `;
+
+    try {
+      const response = await axios.post(
+        'https://xray.cloud.getxray.app/api/v2/graphql',
+        { query: mutation },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 30000,
+        }
+      );
+
+      if (response.data.errors) {
+        throw new Error(
+          `GraphQL errors: ${JSON.stringify(response.data.errors)}`
+        );
+      }
+
+      return response.data.data.removeAllTestSteps;
+    } catch (error: any) {
+      console.error(
+        `Failed to remove all test steps from ${issueId}:`,
+        error.message
+      );
+      if (error.response?.status === 401) {
+        this.token = null;
+      }
+      throw error;
+    }
+  }
+
+  // Get all test runs for a test issue, including step-level execution data
+  public async getTestRunsForTest(testIssueId: string): Promise<any[]> {
+    const token = await this.authenticate();
+
+    const query = `
+      query {
+        getTestRuns(testIssueIds: ["${testIssueId}"], limit: 100) {
+          total
+          results {
+            id
+            status { name }
+            steps {
+              id
+              action
+              status { name }
+              comment
+              actualResult
+              defects
+              evidence {
+                id
+                filename
+                downloadLink
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    try {
+      const response = await axios.post(
+        'https://xray.cloud.getxray.app/api/v2/graphql',
+        { query },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 30000,
+        }
+      );
+
+      if (response.data.errors) {
+        throw new Error(
+          `GraphQL errors: ${JSON.stringify(response.data.errors)}`
+        );
+      }
+
+      return response.data.data.getTestRuns?.results || [];
+    } catch (error: any) {
+      console.error(
+        `Failed to get test runs for ${testIssueId}:`,
+        error.message
+      );
+      if (error.response?.status === 401) {
+        this.token = null;
+      }
+      throw error;
+    }
+  }
+
+  // Download evidence file and return as base64
+  public async downloadEvidence(downloadLink: string): Promise<{ data: string; mimeType: string } | null> {
+    const token = await this.authenticate();
+
+    try {
+      const response = await axios.get(downloadLink, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        responseType: 'arraybuffer',
+        timeout: 30000,
+      });
+
+      const base64 = Buffer.from(response.data).toString('base64');
+      const mimeType = response.headers['content-type'] || 'application/octet-stream';
+      return { data: base64, mimeType };
+    } catch (error: any) {
+      console.error(`Failed to download evidence from ${downloadLink}:`, error.message);
+      return null;
+    }
+  }
+
+  // Update a test run step (status, comment, actualResult, defects, evidence)
+  public async restoreTestRunStep(
+    testRunId: string,
+    stepId: string,
+    data: {
+      status?: string;
+      comment?: string;
+      actualResult?: string;
+      defects?: string[];
+      evidence?: Array<{ filename: string; mimeType: string; data: string }>;
+    }
+  ): Promise<any> {
+    const token = await this.authenticate();
+
+    const updateFields: string[] = [];
+    if (data.status && data.status !== 'TODO') {
+      updateFields.push(`status: ${JSON.stringify(data.status)}`);
+    }
+    if (data.comment) {
+      updateFields.push(`comment: ${JSON.stringify(data.comment)}`);
+    }
+    if (data.actualResult) {
+      updateFields.push(`actualResult: ${JSON.stringify(data.actualResult)}`);
+    }
+    if (data.defects && data.defects.length > 0) {
+      updateFields.push(`defects: { add: ${JSON.stringify(data.defects)} }`);
+    }
+    if (data.evidence && data.evidence.length > 0) {
+      const evidenceItems = data.evidence.map(
+        (e) => `{ filename: ${JSON.stringify(e.filename)}, mimeType: ${JSON.stringify(e.mimeType)}, data: ${JSON.stringify(e.data)} }`
+      );
+      updateFields.push(`evidence: { add: [${evidenceItems.join(', ')}] }`);
+    }
+
+    if (updateFields.length === 0) return null;
+
+    const mutation = `
+      mutation {
+        updateTestRunStep(
+          testRunId: "${testRunId}",
+          stepId: "${stepId}",
+          updateData: { ${updateFields.join(', ')} }
+        ) {
+          warnings
+        }
+      }
+    `;
+
+    try {
+      const response = await axios.post(
+        'https://xray.cloud.getxray.app/api/v2/graphql',
+        { query: mutation },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 30000,
+        }
+      );
+
+      if (response.data.errors) {
+        throw new Error(
+          `GraphQL errors: ${JSON.stringify(response.data.errors)}`
+        );
+      }
+
+      return response.data.data.updateTestRunStep;
+    } catch (error: any) {
+      console.error(
+        `Failed to restore test run step ${stepId}:`,
+        error.message
+      );
+      throw error;
+    }
+  }
+
   // Remove a test step
   public async removeTestStep(testKey: string, stepId: string): Promise<any> {
     const token = await this.authenticate();
