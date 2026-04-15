@@ -38,7 +38,7 @@ export async function linkIssues(
   axiosInstance: AxiosInstance,
   config: Config,
   args: any
-): Promise<{ content: Array<{ type: string; text: string }> }> {
+): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
     const toKey = args.to_key;
     const linkType = args.link_type;
@@ -52,6 +52,7 @@ export async function linkIssues(
             text: 'Error: Provide either from_key or from_keys.',
           },
         ],
+        isError: true,
       };
     }
 
@@ -94,6 +95,7 @@ export async function linkIssues(
           }`,
         },
       ],
+      isError: true,
     };
   }
 }

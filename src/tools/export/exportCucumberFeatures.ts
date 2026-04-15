@@ -21,7 +21,7 @@ export async function exportCucumberFeatures(
   axiosInstance: AxiosInstance,
   config: Config,
   args: any
-): Promise<{ content: Array<{ type: string; text: string }> }> {
+): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
     const testKeysStr = args.test_keys;
     console.error('Exporting Cucumber features from Xray Cloud...');
@@ -68,6 +68,7 @@ export async function exportCucumberFeatures(
           }`,
         },
       ],
+      isError: true,
     };
   }
 }

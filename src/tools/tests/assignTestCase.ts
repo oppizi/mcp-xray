@@ -31,7 +31,7 @@ export async function assignTestCase(
   axiosInstance: AxiosInstance,
   config: Config,
   args: any
-): Promise<{ content: Array<{ type: string; text: string }> }> {
+): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
     const email = args.assignee_email;
     const keys: string[] = args.issue_keys || (args.issue_key ? [args.issue_key] : []);
@@ -44,6 +44,7 @@ export async function assignTestCase(
             text: 'Error: Provide either issue_key or issue_keys.',
           },
         ],
+        isError: true,
       };
     }
 
@@ -62,6 +63,7 @@ export async function assignTestCase(
             text: `Error: No user found for email "${email}". Check the email address.`,
           },
         ],
+        isError: true,
       };
     }
 
@@ -108,6 +110,7 @@ export async function assignTestCase(
           }`,
         },
       ],
+      isError: true,
     };
   }
 }

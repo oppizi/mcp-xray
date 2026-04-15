@@ -48,7 +48,7 @@ export async function getTestsInFolder(
   axiosInstance: AxiosInstance,
   config: Config,
   args: any
-): Promise<{ content: Array<{ type: string; text: string }> }> {
+): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
     const folderPath = args.folder_path;
     const projectId = args.project_id || '10001';
@@ -66,6 +66,7 @@ export async function getTestsInFolder(
             text: 'Error: Xray Cloud API credentials not configured. Set XRAY_CLIENT_ID and XRAY_CLIENT_SECRET.',
           },
         ],
+        isError: true,
       };
     }
 
@@ -151,6 +152,7 @@ export async function getTestsInFolder(
           }`,
         },
       ],
+      isError: true,
     };
   }
 }

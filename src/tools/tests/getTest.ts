@@ -26,7 +26,7 @@ export async function getTest(
   axiosInstance: AxiosInstance,
   config: Config,
   args: any
-): Promise<{ content: Array<{ type: string; text: string }> }> {
+): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
     const testKey = args.test_key;
     const includeLinks = args.include_links || false;
@@ -144,6 +144,7 @@ ${index + 1}. **Action:** ${step.step}
           }`,
         },
       ],
+      isError: true,
     };
   }
 }

@@ -32,7 +32,7 @@ export async function searchTests(
   axiosInstance: AxiosInstance,
   config: Config,
   args: any
-): Promise<{ content: Array<{ type: string; text: string }> }> {
+): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
     const { jql, limit = 50, include_steps = false } = args;
 
@@ -48,6 +48,7 @@ export async function searchTests(
             text: 'Xray Cloud API credentials not configured. This tool requires XRAY_CLIENT_ID and XRAY_CLIENT_SECRET in .mcp.env.',
           },
         ],
+        isError: true,
       };
     }
 
@@ -104,6 +105,7 @@ export async function searchTests(
           }`,
         },
       ],
+      isError: true,
     };
   }
 }

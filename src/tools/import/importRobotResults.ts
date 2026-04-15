@@ -25,7 +25,7 @@ export async function importRobotResults(
   axiosInstance: AxiosInstance,
   config: Config,
   args: any
-): Promise<{ content: Array<{ type: string; text: string }> }> {
+): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
     const robotXml = args.robot_xml;
     console.error('Importing Robot Framework results to Xray Cloud...');
@@ -80,6 +80,7 @@ export async function importRobotResults(
           }`,
         },
       ],
+      isError: true,
     };
   }
 }

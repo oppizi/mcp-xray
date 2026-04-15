@@ -27,7 +27,7 @@ export async function listTestSets(
   axiosInstance: AxiosInstance,
   config: Config,
   args: any
-): Promise<{ content: Array<{ type: string; text: string }> }> {
+): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
     const projectKey = args.project_key;
     const maxResults = Math.min(args?.max_results ?? 50, 100);
@@ -91,6 +91,7 @@ export async function listTestSets(
           }`,
         },
       ],
+      isError: true,
     };
   }
 }

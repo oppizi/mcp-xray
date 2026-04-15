@@ -50,7 +50,7 @@ export async function createPrecondition(
   axiosInstance: AxiosInstance,
   config: Config,
   args: any
-): Promise<{ content: Array<{ type: string; text: string }> }> {
+): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
     const {
       project_key,
@@ -180,6 +180,7 @@ View at: ${config.JIRA_BASE_URL}/browse/${key}`,
           }`,
         },
       ],
+      isError: true,
     };
   }
 }

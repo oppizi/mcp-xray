@@ -32,7 +32,7 @@ export async function transitionTestCase(
   axiosInstance: AxiosInstance,
   config: Config,
   args: any
-): Promise<{ content: Array<{ type: string; text: string }> }> {
+): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
     const statusName = args.status_name;
     const keys: string[] = args.issue_keys || (args.issue_key ? [args.issue_key] : []);
@@ -45,6 +45,7 @@ export async function transitionTestCase(
             text: 'Error: Provide either issue_key or issue_keys.',
           },
         ],
+        isError: true,
       };
     }
 
@@ -68,6 +69,7 @@ export async function transitionTestCase(
             text: `Error: No transition found for status "${statusName}".\nAvailable transitions: ${available || 'None'}`,
           },
         ],
+        isError: true,
       };
     }
 
@@ -109,6 +111,7 @@ export async function transitionTestCase(
           }`,
         },
       ],
+      isError: true,
     };
   }
 }

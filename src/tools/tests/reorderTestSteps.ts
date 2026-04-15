@@ -38,7 +38,7 @@ export async function reorderTestSteps(
   axiosInstance: AxiosInstance,
   config: Config,
   args: any
-): Promise<{ content: Array<{ type: string; text: string }> }> {
+): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
     const { test_key, step_ids } = args;
 
@@ -50,6 +50,7 @@ export async function reorderTestSteps(
             text: 'Error: step_ids must be a non-empty array of step ID strings.',
           },
         ],
+        isError: true,
       };
     }
 
@@ -63,6 +64,7 @@ export async function reorderTestSteps(
             text: 'Xray Cloud API credentials not configured. This tool requires XRAY_CLIENT_ID and XRAY_CLIENT_SECRET in .mcp.env.',
           },
         ],
+        isError: true,
       };
     }
 
@@ -76,6 +78,7 @@ export async function reorderTestSteps(
         content: [
           { type: 'text', text: `Error: Test ${test_key} not found in Xray.` },
         ],
+        isError: true,
       };
     }
 
@@ -113,6 +116,7 @@ export async function reorderTestSteps(
             text: `Error: These step IDs don't exist on ${test_key}: ${missing.join(', ')}\n\nCurrent step IDs:\n${currentSteps.map((s) => `  ${s.id} — "${s.action}"`).join('\n')}`,
           },
         ],
+        isError: true,
       };
     }
 
@@ -126,6 +130,7 @@ export async function reorderTestSteps(
             text: `Error: All existing step IDs must be included. Missing from your list:\n${extra.map((s) => `  ${s.id} — "${s.action}"`).join('\n')}`,
           },
         ],
+        isError: true,
       };
     }
 
@@ -264,6 +269,7 @@ export async function reorderTestSteps(
               `⚠ REMAINING STEPS (add manually with add_test_step):\n${recoveryData}\n\n` +
               `⚠ Test run data was NOT restored. Check stderr for full backup.`,
           }],
+          isError: true,
         };
       }
     }
@@ -295,6 +301,7 @@ export async function reorderTestSteps(
           type: 'text',
           text: `⚠ Reorder completed but verification failed:\n${verifyIssues.join('\n')}\n\nCheck ${config.JIRA_BASE_URL}/browse/${test_key}. Run data was NOT restored.`,
         }],
+        isError: true,
       };
     }
 
@@ -385,6 +392,7 @@ export async function reorderTestSteps(
             : error.message || 'Unknown error'
         }`,
       }],
+      isError: true,
     };
   }
 }

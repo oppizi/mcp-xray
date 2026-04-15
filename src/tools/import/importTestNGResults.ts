@@ -25,7 +25,7 @@ export async function importTestNGResults(
   axiosInstance: AxiosInstance,
   config: Config,
   args: any
-): Promise<{ content: Array<{ type: string; text: string }> }> {
+): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
     const testngXml = args.testng_xml;
     console.error('Importing TestNG results to Xray Cloud...');
@@ -80,6 +80,7 @@ export async function importTestNGResults(
           }`,
         },
       ],
+      isError: true,
     };
   }
 }

@@ -37,7 +37,7 @@ export async function getTestWithSteps(
   axiosInstance: AxiosInstance,
   config: Config,
   args: any
-): Promise<{ content: Array<{ type: string; text: string }> }> {
+): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
     const testKey = args.test_key;
 
@@ -78,6 +78,7 @@ export async function getTestWithSteps(
                 `In the meantime, you can use get_test to see test details without steps.`,
             },
           ],
+          isError: true,
         };
       }
 
@@ -92,6 +93,7 @@ export async function getTestWithSteps(
               text: `Error: Test ${testKey} not found in Xray Cloud API.`,
             },
           ],
+          isError: true,
         };
       }
 
@@ -116,6 +118,7 @@ export async function getTestWithSteps(
             text: `Error fetching test steps: ${stepError.message}`,
           },
         ],
+        isError: true,
       };
     }
 
@@ -180,6 +183,7 @@ ${fields.description?.content?.[0]?.content?.[0]?.text || fields.description || 
           }`,
         },
       ],
+      isError: true,
     };
   }
 }

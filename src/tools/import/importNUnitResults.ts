@@ -25,7 +25,7 @@ export async function importNUnitResults(
   axiosInstance: AxiosInstance,
   config: Config,
   args: any
-): Promise<{ content: Array<{ type: string; text: string }> }> {
+): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
     const nunitXml = args.nunit_xml;
     console.error('Importing NUnit results to Xray Cloud...');
@@ -80,6 +80,7 @@ export async function importNUnitResults(
           }`,
         },
       ],
+      isError: true,
     };
   }
 }

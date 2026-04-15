@@ -81,7 +81,7 @@ export async function getFolderTree(
   axiosInstance: AxiosInstance,
   config: Config,
   args: any
-): Promise<{ content: Array<{ type: string; text: string }> }> {
+): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
     const projectId = args.project_id || '10001';
     const path = args.path || '/';
@@ -99,6 +99,7 @@ export async function getFolderTree(
             text: 'Error: Xray Cloud API credentials not configured. Set XRAY_CLIENT_ID and XRAY_CLIENT_SECRET.',
           },
         ],
+        isError: true,
       };
     }
 
@@ -146,6 +147,7 @@ export async function getFolderTree(
           }`,
         },
       ],
+      isError: true,
     };
   }
 }

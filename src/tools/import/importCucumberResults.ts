@@ -25,7 +25,7 @@ export async function importCucumberResults(
   axiosInstance: AxiosInstance,
   config: Config,
   args: any
-): Promise<{ content: Array<{ type: string; text: string }> }> {
+): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
     const cucumberJson = args.cucumber_json;
     console.error('Importing Cucumber results to Xray Cloud...');
@@ -83,6 +83,7 @@ export async function importCucumberResults(
           }`,
         },
       ],
+      isError: true,
     };
   }
 }

@@ -21,7 +21,7 @@ export async function getTestExecution(
   axiosInstance: AxiosInstance,
   config: Config,
   args: any
-): Promise<{ content: Array<{ type: string; text: string }> }> {
+): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
     const testExecutionKey = args.test_execution_key;
 
@@ -112,6 +112,7 @@ ${fields.description?.content?.[0]?.content?.[0]?.text || fields.description || 
           }`,
         },
       ],
+      isError: true,
     };
   }
 }

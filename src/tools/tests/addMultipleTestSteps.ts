@@ -27,7 +27,7 @@ export async function addMultipleTestSteps(
   axiosInstance: AxiosInstance,
   config: Config,
   args: any
-): Promise<{ content: Array<{ type: string; text: string }> }> {
+): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
     const testKey = args.test_key;
     const stepsJson = args.steps;
@@ -47,6 +47,7 @@ export async function addMultipleTestSteps(
             text: `Error parsing steps JSON: ${parseError.message}\n\nExpected format: [{"action":"step action","data":"test data","result":"expected result"}]`,
           },
         ],
+        isError: true,
       };
     }
 
@@ -60,6 +61,7 @@ export async function addMultipleTestSteps(
             text: 'Xray Cloud API credentials not configured. This tool requires XRAY_CLIENT_ID and XRAY_CLIENT_SECRET in .mcp.env.',
           },
         ],
+        isError: true,
       };
     }
 
@@ -111,6 +113,7 @@ export async function addMultipleTestSteps(
           }`,
         },
       ],
+      isError: true,
     };
   }
 }

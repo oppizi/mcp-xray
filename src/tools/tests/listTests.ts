@@ -36,7 +36,7 @@ export async function listTests(
   axiosInstance: AxiosInstance,
   config: Config,
   args: any
-): Promise<{ content: Array<{ type: string; text: string }> }> {
+): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
     const projectKey = args.project_key;
     const labels = args.labels;
@@ -123,6 +123,7 @@ export async function listTests(
           }`,
         },
       ],
+      isError: true,
     };
   }
 }
