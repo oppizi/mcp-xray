@@ -1,6 +1,7 @@
 import { AxiosInstance } from 'axios';
 import { Config } from '../../types.js';
 import { XrayCloudService } from '../../services/XrayCloudService.js';
+import { parseJira } from '../helpers/jira.js';
 
 export const getTestPreconditionsTool = {
   name: 'get_test_preconditions',
@@ -58,10 +59,12 @@ export async function getTestPreconditions(
     let output = `**Preconditions for ${test_key}** (${data.total} total)\n\n`;
 
     for (const pc of data.results) {
-      const key = pc.jira?.key || `ID:${pc.issueId}`;
-      const summary = pc.jira?.summary || 'No summary';
-      const pcStatus = pc.jira?.status?.name || 'Unknown';
-      const pcLabels = pc.jira?.labels?.join(', ') || 'None';
+      // Xray returns `jira` as a JSON string — must parse before accessing fields.
+      const jira = parseJira(pc.jira);
+      const key = jira.key || `ID:${pc.issueId}`;
+      const summary = jira.summary || 'No summary';
+      const pcStatus = jira.status?.name || 'Unknown';
+      const pcLabels = jira.labels?.join(', ') || 'None';
       const pcType = pc.preconditionType?.name || 'Unknown';
       const definition = pc.definition || '';
 

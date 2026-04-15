@@ -1,6 +1,7 @@
 import { AxiosInstance } from 'axios';
 import { Config } from '../../types.js';
 import { XrayCloudService } from '../../services/XrayCloudService.js';
+import { parseJira } from '../helpers/jira.js';
 
 export const getPreconditionTool = {
   name: 'get_precondition',
@@ -55,15 +56,17 @@ export async function getPrecondition(
       };
     }
 
-    const summary = pc.jira?.summary || 'No summary';
-    const description = pc.jira?.description?.content?.[0]?.content?.[0]?.text || pc.jira?.description || 'No description';
-    const status = pc.jira?.status?.name || 'Unknown';
-    const priority = pc.jira?.priority?.name || 'Not set';
-    const assignee = pc.jira?.assignee?.displayName || 'Unassigned';
-    const reporter = pc.jira?.reporter?.displayName || 'Unknown';
-    const labels = pc.jira?.labels?.join(', ') || 'None';
-    const created = pc.jira?.created?.substring(0, 10) || '';
-    const updated = pc.jira?.updated?.substring(0, 10) || '';
+    // Xray returns `jira` as a JSON string — must parse before accessing fields.
+    const jira = parseJira(pc.jira);
+    const summary = jira.summary || 'No summary';
+    const description = jira.description?.content?.[0]?.content?.[0]?.text || jira.description || 'No description';
+    const status = jira.status?.name || 'Unknown';
+    const priority = jira.priority?.name || 'Not set';
+    const assignee = jira.assignee?.displayName || 'Unassigned';
+    const reporter = jira.reporter?.displayName || 'Unknown';
+    const labels = jira.labels?.join(', ') || 'None';
+    const created = jira.created?.substring(0, 10) || '';
+    const updated = jira.updated?.substring(0, 10) || '';
     const pcType = pc.preconditionType?.name || 'Unknown';
     const definition = pc.definition || 'No definition set';
 
@@ -85,9 +88,10 @@ export async function getPrecondition(
     if (tests && tests.results && tests.results.length > 0) {
       output += `\n**Linked Tests (${tests.total}):**\n`;
       for (const test of tests.results) {
-        const testKey = test.jira?.key || `ID:${test.issueId}`;
-        const testSummary = test.jira?.summary || 'No summary';
-        const testStatus = test.jira?.status?.name || 'Unknown';
+        const testJira = parseJira(test.jira);
+        const testKey = testJira.key || `ID:${test.issueId}`;
+        const testSummary = testJira.summary || 'No summary';
+        const testStatus = testJira.status?.name || 'Unknown';
         const testType = test.testType?.name || 'Unknown';
         output += `- **${testKey}**: ${testSummary} (${testType}, ${testStatus})\n`;
       }
