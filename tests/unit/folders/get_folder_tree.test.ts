@@ -49,6 +49,63 @@ describe('get_folder_tree', () => {
       expect(result.content[0].text).toContain('Precondition Repository');
     });
 
+    it('parses nested JSON-scalar `folders` field with multi-level data', async () => {
+      // The real Xray API returns `folders` as a JSON scalar (string) that
+      // contains the nested folder tree. The default mock returns `[]`,
+      // so this test exercises the JSON.parse path with a multi-level tree.
+      // Guards against regressions where a change to the parser handles
+      // shallow trees but breaks on nested ones.
+      server.use(
+        http.post(XRAY_GRAPHQL, () => {
+          return HttpResponse.json({
+            data: {
+              getFolder: {
+                name: 'Test Repository',
+                path: '/',
+                testsCount: 30,
+                issuesCount: 30,
+                folders: JSON.stringify([
+                  {
+                    name: 'Smoke',
+                    path: '/Smoke',
+                    testsCount: 10,
+                    issuesCount: 10,
+                    folders: [
+                      {
+                        name: 'Login',
+                        path: '/Smoke/Login',
+                        testsCount: 3,
+                        issuesCount: 3,
+                        folders: [],
+                      },
+                      {
+                        name: 'Signup',
+                        path: '/Smoke/Signup',
+                        testsCount: 7,
+                        issuesCount: 7,
+                        folders: [],
+                      },
+                    ],
+                  },
+                ]),
+              },
+            },
+          });
+        }),
+      );
+
+      const result = await callTool(TOOL, { project_id: '10001', path: '/' });
+
+      expect(result.isError).not.toBe(true);
+      // All three nested folders must appear in the output.
+      expect(result.content[0].text).toContain('Smoke');
+      expect(result.content[0].text).toContain('Login');
+      expect(result.content[0].text).toContain('Signup');
+      // Counts from nested levels propagate
+      expect(result.content[0].text).toContain('3 tests');
+      expect(result.content[0].text).toContain('7 tests');
+    });
+
     it('filters folders by search keyword', async () => {
       server.use(
         http.post(XRAY_GRAPHQL, () => {
