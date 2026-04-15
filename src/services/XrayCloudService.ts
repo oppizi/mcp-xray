@@ -1895,12 +1895,16 @@ export class XrayCloudService {
     const token = await this.authenticate();
 
     const queryName = repositoryType === 'precondition' ? 'getPreconditionFolder' : 'getFolder';
+    // The Xray Cloud FolderResults schema exposes `testsCount` and `issuesCount`
+    // (not `testCount`). `testsCount` = only Test-type issues; `issuesCount`
+    // includes all issue types under the folder.
     const query = `
       query {
         ${queryName}(projectId: "${projectId}", path: ${JSON.stringify(path)}) {
           name
           path
-          testCount
+          testsCount
+          issuesCount
           folders
         }
       }
