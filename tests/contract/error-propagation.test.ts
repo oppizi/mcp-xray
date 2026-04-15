@@ -58,12 +58,17 @@ describe('Contract: error propagation (runs against every tool)', () => {
     expect(TOOLS.length).toBeGreaterThan(0);
   });
 
-  describe('Xray GraphQL returns an errors[] array', () => {
-    // Any GraphQL error should surface as isError: true.
-    // This is the exact class of bug that motivated this contract
-    // (the testCount vs testsCount field name regression).
+  describe('All backends fail (GraphQL errors[] + Jira 500)', () => {
+    // Worst-case catastrophe: Jira AND Xray both fail, each in their
+    // characteristic way. Every tool MUST surface isError because no
+    // data is available from ANY backend.
+    //
+    // This specifically covers the testCount/testsCount regression class —
+    // GraphQL errors arrive as 200 OK with errors[] in body (NOT as HTTP 4xx),
+    // so the "HTTP 500" scenario alone wouldn't have caught that bug.
     it.each([{ run: '*' }])('runs for every tool', async () => {
       server.use(
+        // Xray GraphQL: schema error in body (200 OK)
         http.post('https://xray.cloud.getxray.app/api/v2/graphql', () => {
           return HttpResponse.json({
             errors: [
@@ -74,6 +79,20 @@ describe('Contract: error propagation (runs against every tool)', () => {
               },
             ],
           });
+        }),
+        // Xray REST endpoints (imports etc.): HTTP 500
+        http.post('https://xray.cloud.getxray.app/api/v2/*', () => {
+          return HttpResponse.json(
+            { error: 'Internal Server Error' },
+            { status: 500 },
+          );
+        }),
+        // Jira REST: ALL methods return 500
+        http.all('https://test.atlassian.net/*', () => {
+          return HttpResponse.json(
+            { errorMessages: ['Internal Server Error'] },
+            { status: 500 },
+          );
         }),
       );
 
@@ -90,7 +109,7 @@ describe('Contract: error propagation (runs against every tool)', () => {
 
       if (failures.length > 0) {
         throw new Error(
-          `${failures.length}/${TOOLS.length} tools swallow Xray GraphQL errors into ` +
+          `${failures.length}/${TOOLS.length} tools swallow backend errors into ` +
             `non-error responses. Each of these can silently fail in production:\n` +
             failures.join('\n'),
         );

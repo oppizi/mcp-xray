@@ -178,13 +178,24 @@ export async function callTool(
   tool: DiscoveredTool,
   args: Record<string, any>,
 ): Promise<any> {
-  const axiosInstance = axios.create();
+  // Build an axios instance with the Jira base URL pre-configured
+  // (matches how src/index.ts constructs it for real runs).
+  const axiosInstance = axios.create({
+    baseURL: process.env.JIRA_BASE_URL!,
+    auth: {
+      username: process.env.JIRA_EMAIL!,
+      password: process.env.JIRA_API_TOKEN!,
+    },
+  });
+
+  // Config object uses the UPPERCASE keys from ConfigSchema in src/types.ts
+  // (JIRA_BASE_URL etc. — these are env var names doubled as config keys).
   const config = {
-    jiraUrl: process.env.JIRA_BASE_URL!,
-    jiraUsername: process.env.JIRA_EMAIL!,
-    jiraApiToken: process.env.JIRA_API_TOKEN!,
-    xrayClientId: process.env.XRAY_CLIENT_ID!,
-    xrayClientSecret: process.env.XRAY_CLIENT_SECRET!,
+    JIRA_BASE_URL: process.env.JIRA_BASE_URL!,
+    JIRA_EMAIL: process.env.JIRA_EMAIL!,
+    JIRA_API_TOKEN: process.env.JIRA_API_TOKEN!,
+    XRAY_CLIENT_ID: process.env.XRAY_CLIENT_ID!,
+    XRAY_CLIENT_SECRET: process.env.XRAY_CLIENT_SECRET!,
   };
 
   try {
