@@ -72,6 +72,7 @@ export async function listTests(
     );
 
     const tests = response.data.issues;
+    const total = response.data.total ?? tests.length;
 
     if (tests.length === 0) {
       return {
@@ -86,7 +87,14 @@ export async function listTests(
       };
     }
 
-    const summary = `Found ${tests.length} test(s) in project "${projectKey}"`;
+    // Surface both the total and the page size so users know when results
+    // are truncated. Without this, "Found 50" reads as "50 total" when it
+    // actually means "showing first 50 of 500" — silent data loss.
+    const truncationNote =
+      total > tests.length
+        ? ` (showing first ${tests.length} — raise max_results to see more)`
+        : '';
+    const summary = `Found ${total} test(s) in project "${projectKey}"${truncationNote}`;
 
     const testList = tests
       .map((test: JiraIssue) => {

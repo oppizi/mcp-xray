@@ -59,7 +59,13 @@ export async function listTestPlans(
       };
     }
 
-    const summary = `Found ${testPlans.length} test plan(s) in project "${projectKey}"`;
+    // Expose pagination: show total AND page size to prevent silent truncation.
+    const total = response.data.total ?? testPlans.length;
+    const truncationNote =
+      total > testPlans.length
+        ? ` (showing first ${testPlans.length} — raise max_results to see more)`
+        : '';
+    const summary = `Found ${total} test plan(s) in project "${projectKey}"${truncationNote}`;
 
     const planList = testPlans
       .map((plan: JiraIssue) => {

@@ -157,7 +157,7 @@ export class XrayCloudService {
       // Use getTests (plural) with JQL filter - this reliably returns test steps
       const query = `
         query {
-          getTests(jql: "key = ${testKey}", limit: 1) {
+          getTests(jql: ${JSON.stringify(`key = ${testKey}`)}, limit: 1) {
             total
             results {
               issueId
@@ -851,7 +851,18 @@ export class XrayCloudService {
         );
       }
 
-      return response.data.data.getTests?.results || [];
+      const data = response.data.data.getTests;
+      // Expose both `results` array (legacy shape) and `total` count so
+      // callers can surface truncation warnings. The returned array carries
+      // `total` as a non-enumerable property so existing consumers that
+      // treat the value as a plain array keep working, while new callers
+      // can read `(result as any).total`.
+      const results = (data?.results || []) as any[];
+      Object.defineProperty(results, 'total', {
+        value: data?.total ?? results.length,
+        enumerable: false,
+      });
+      return results;
     } catch (error: any) {
       console.error('Failed to search tests:', error.message);
       if (error.response?.status === 401) {
@@ -971,7 +982,7 @@ export class XrayCloudService {
 
     const query = `
       query {
-        getPreconditions(jql: "key = ${preconditionKey}", limit: 1) {
+        getPreconditions(jql: ${JSON.stringify(`key = ${preconditionKey}`)}, limit: 1) {
           total
           results {
             issueId
@@ -1031,7 +1042,7 @@ export class XrayCloudService {
 
     const query = `
       query {
-        getTests(jql: "key = ${testKey}", limit: 1) {
+        getTests(jql: ${JSON.stringify(`key = ${testKey}`)}, limit: 1) {
           results {
             issueId
             preconditions(limit: 100) {
@@ -1895,12 +1906,16 @@ export class XrayCloudService {
     const token = await this.authenticate();
 
     const queryName = repositoryType === 'precondition' ? 'getPreconditionFolder' : 'getFolder';
+    // The Xray Cloud FolderResults schema exposes `testsCount` and `issuesCount`
+    // (not `testCount`). `testsCount` = only Test-type issues; `issuesCount`
+    // includes all issue types under the folder.
     const query = `
       query {
         ${queryName}(projectId: "${projectId}", path: ${JSON.stringify(path)}) {
           name
           path
-          testCount
+          testsCount
+          issuesCount
           folders
         }
       }

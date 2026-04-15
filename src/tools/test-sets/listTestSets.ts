@@ -47,6 +47,7 @@ export async function listTestSets(
     );
 
     const testSets = response.data.issues;
+    const total = response.data.total ?? testSets.length;
 
     if (testSets.length === 0) {
       return {
@@ -59,7 +60,12 @@ export async function listTestSets(
       };
     }
 
-    const summary = `Found ${testSets.length} test set(s) in project "${projectKey}"`;
+    // Expose pagination: show total AND page size to prevent silent truncation.
+    const truncationNote =
+      total > testSets.length
+        ? ` (showing first ${testSets.length} — raise max_results to see more)`
+        : '';
+    const summary = `Found ${total} test set(s) in project "${projectKey}"${truncationNote}`;
 
     const setList = testSets
       .map((set: JiraIssue) => {

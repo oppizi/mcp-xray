@@ -81,7 +81,13 @@ export async function listTestExecutions(
       };
     }
 
-    const summary = `Found ${executions.length} test execution(s) in project "${projectKey}"`;
+    // Expose pagination: show total AND page size to prevent silent truncation.
+    const total = response.data.total ?? executions.length;
+    const truncationNote =
+      total > executions.length
+        ? ` (showing first ${executions.length} — raise max_results to see more)`
+        : '';
+    const summary = `Found ${total} test execution(s) in project "${projectKey}"${truncationNote}`;
 
     const executionList = executions
       .map((execution: JiraIssue) => {

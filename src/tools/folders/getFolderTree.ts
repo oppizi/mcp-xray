@@ -52,7 +52,13 @@ function formatTree(
   const prefix = '  '.repeat(indent);
   const name = folder.name || '(root)';
   const path = folder.path || '/';
-  const count = folder.testCount != null ? ` (${folder.testCount} tests)` : '';
+  // Match the Xray schema field names: testsCount / issuesCount.
+  const testsCount = folder.testsCount ?? folder.testCount; // testCount kept as fallback
+  const issuesCount = folder.issuesCount;
+  const countParts: string[] = [];
+  if (testsCount != null) countParts.push(`${testsCount} tests`);
+  if (issuesCount != null && issuesCount !== testsCount) countParts.push(`${issuesCount} issues`);
+  const count = countParts.length ? ` (${countParts.join(', ')})` : '';
 
   // If search filter, skip folders that don't match and have no matching children
   const nameMatches =
