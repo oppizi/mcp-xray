@@ -52,7 +52,15 @@ function formatTree(
   const prefix = '  '.repeat(indent);
   const name = folder.name || '(root)';
   const path = folder.path || '/';
-  const count = folder.testCount != null ? ` (${folder.testCount} tests)` : '';
+  // Match the Xray schema field names: testsCount / issuesCount.
+  // The service queries `testsCount` exclusively. Contract test prevents
+  // reintroduction of the old `testCount` field name.
+  const testsCount = folder.testsCount;
+  const issuesCount = folder.issuesCount;
+  const countParts: string[] = [];
+  if (testsCount != null) countParts.push(`${testsCount} tests`);
+  if (issuesCount != null && issuesCount !== testsCount) countParts.push(`${issuesCount} issues`);
+  const count = countParts.length ? ` (${countParts.join(', ')})` : '';
 
   // If search filter, skip folders that don't match and have no matching children
   const nameMatches =
@@ -81,7 +89,7 @@ export async function getFolderTree(
   axiosInstance: AxiosInstance,
   config: Config,
   args: any
-): Promise<{ content: Array<{ type: string; text: string }> }> {
+): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
     const projectId = args.project_id || '10001';
     const path = args.path || '/';
@@ -99,6 +107,7 @@ export async function getFolderTree(
             text: 'Error: Xray Cloud API credentials not configured. Set XRAY_CLIENT_ID and XRAY_CLIENT_SECRET.',
           },
         ],
+        isError: true,
       };
     }
 
@@ -146,6 +155,7 @@ export async function getFolderTree(
           }`,
         },
       ],
+      isError: true,
     };
   }
 }

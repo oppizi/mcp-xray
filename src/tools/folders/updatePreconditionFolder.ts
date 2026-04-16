@@ -27,7 +27,7 @@ export async function updatePreconditionFolder(
   axiosInstance: AxiosInstance,
   config: Config,
   args: any
-): Promise<{ content: Array<{ type: string; text: string }> }> {
+): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
     const preconditionKey = args.precondition_key;
     const folderPath = args.folder_path;
@@ -42,6 +42,7 @@ export async function updatePreconditionFolder(
             text: 'Error: Xray Cloud API credentials not configured. Set XRAY_CLIENT_ID and XRAY_CLIENT_SECRET.',
           },
         ],
+        isError: true,
       };
     }
 
@@ -81,6 +82,7 @@ export async function updatePreconditionFolder(
           }`,
         },
       ],
+      isError: true,
     };
   }
 }

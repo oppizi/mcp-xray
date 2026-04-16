@@ -25,7 +25,7 @@ export async function importFeatureFile(
   axiosInstance: AxiosInstance,
   config: Config,
   args: any
-): Promise<{ content: Array<{ type: string; text: string }> }> {
+): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
     const featureContent = args.feature_content;
     console.error('Importing feature file to Xray Cloud...');
@@ -81,6 +81,7 @@ export async function importFeatureFile(
           }`,
         },
       ],
+      isError: true,
     };
   }
 }

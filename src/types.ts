@@ -208,6 +208,9 @@ export interface JiraIssue {
 // Jira Search Response (from POST /rest/api/3/search/jql)
 export interface JiraSearchResponse {
   issues: JiraIssue[];
+  total?: number;
+  startAt?: number;
+  maxResults?: number;
   isLast: boolean;
   nextPageToken?: string;
 }

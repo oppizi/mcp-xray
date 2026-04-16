@@ -53,7 +53,7 @@ export async function updatePrecondition(
   axiosInstance: AxiosInstance,
   config: Config,
   args: any
-): Promise<{ content: Array<{ type: string; text: string }> }> {
+): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
     const {
       precondition_key,
@@ -176,6 +176,7 @@ export async function updatePrecondition(
           }`,
         },
       ],
+      isError: true,
     };
   }
 }

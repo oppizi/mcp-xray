@@ -27,7 +27,7 @@ export async function addPreconditionToTests(
   axiosInstance: AxiosInstance,
   config: Config,
   args: any
-): Promise<{ content: Array<{ type: string; text: string }> }> {
+): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
     const { precondition_key, test_keys } = args;
 
@@ -47,6 +47,7 @@ export async function addPreconditionToTests(
             text: 'Xray Cloud API credentials not configured. This tool requires XRAY_CLIENT_ID and XRAY_CLIENT_SECRET.',
           },
         ],
+        isError: true,
       };
     }
 
@@ -108,6 +109,7 @@ export async function addPreconditionToTests(
           }`,
         },
       ],
+      isError: true,
     };
   }
 }

@@ -21,7 +21,7 @@ export async function getTestSet(
   axiosInstance: AxiosInstance,
   config: Config,
   args: any
-): Promise<{ content: Array<{ type: string; text: string }> }> {
+): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
     const testSetKey = args.test_set_key;
 
@@ -96,6 +96,7 @@ ${fields.description?.content?.[0]?.content?.[0]?.text || fields.description || 
           }`,
         },
       ],
+      isError: true,
     };
   }
 }

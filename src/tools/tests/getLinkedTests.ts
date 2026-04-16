@@ -35,7 +35,7 @@ export async function getLinkedTests(
   axiosInstance: AxiosInstance,
   config: Config,
   args: any
-): Promise<{ content: Array<{ type: string; text: string }> }> {
+): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
     const ticketKey = args.ticket_key;
     const includeSteps = args.include_steps || false;
@@ -156,6 +156,7 @@ export async function getLinkedTests(
           }`,
         },
       ],
+      isError: true,
     };
   }
 }

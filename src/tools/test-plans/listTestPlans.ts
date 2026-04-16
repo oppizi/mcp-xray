@@ -27,7 +27,7 @@ export async function listTestPlans(
   axiosInstance: AxiosInstance,
   config: Config,
   args: any
-): Promise<{ content: Array<{ type: string; text: string }> }> {
+): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
     const projectKey = args.project_key;
     const maxResults = Math.min(args?.max_results ?? 50, 100);
@@ -59,7 +59,13 @@ export async function listTestPlans(
       };
     }
 
-    const summary = `Found ${testPlans.length} test plan(s) in project "${projectKey}"`;
+    // Expose pagination: show total AND page size to prevent silent truncation.
+    const total = response.data.total ?? testPlans.length;
+    const truncationNote =
+      total > testPlans.length
+        ? ` (showing first ${testPlans.length} — raise max_results to see more)`
+        : '';
+    const summary = `Found ${total} test plan(s) in project "${projectKey}"${truncationNote}`;
 
     const planList = testPlans
       .map((plan: JiraIssue) => {
@@ -91,6 +97,7 @@ export async function listTestPlans(
           }`,
         },
       ],
+      isError: true,
     };
   }
 }

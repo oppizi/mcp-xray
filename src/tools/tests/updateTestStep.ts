@@ -38,7 +38,7 @@ export async function updateTestStep(
   axiosInstance: AxiosInstance,
   config: Config,
   args: any
-): Promise<{ content: Array<{ type: string; text: string }> }> {
+): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
     const { test_key, step_id, action, data, result } = args;
 
@@ -50,6 +50,7 @@ export async function updateTestStep(
             text: 'At least one of action, data, or result must be provided to update.',
           },
         ],
+        isError: true,
       };
     }
 
@@ -65,6 +66,7 @@ export async function updateTestStep(
             text: 'Xray Cloud API credentials not configured. This tool requires XRAY_CLIENT_ID and XRAY_CLIENT_SECRET in .mcp.env.',
           },
         ],
+        isError: true,
       };
     }
 
@@ -102,6 +104,7 @@ View at: ${config.JIRA_BASE_URL}/browse/${test_key}`,
           }`,
         },
       ],
+      isError: true,
     };
   }
 }

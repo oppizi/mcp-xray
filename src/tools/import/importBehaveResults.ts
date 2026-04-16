@@ -25,7 +25,7 @@ export async function importBehaveResults(
   axiosInstance: AxiosInstance,
   config: Config,
   args: any
-): Promise<{ content: Array<{ type: string; text: string }> }> {
+): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
     const behaveJson = args.behave_json;
     console.error('Importing Behave results to Xray Cloud...');
@@ -83,6 +83,7 @@ export async function importBehaveResults(
           }`,
         },
       ],
+      isError: true,
     };
   }
 }

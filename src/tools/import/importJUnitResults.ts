@@ -25,7 +25,7 @@ export async function importJUnitResults(
   axiosInstance: AxiosInstance,
   config: Config,
   args: any
-): Promise<{ content: Array<{ type: string; text: string }> }> {
+): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
     const junitXml = args.junit_xml;
     console.error('Importing JUnit results to Xray Cloud...');
@@ -80,6 +80,7 @@ export async function importJUnitResults(
           }`,
         },
       ],
+      isError: true,
     };
   }
 }

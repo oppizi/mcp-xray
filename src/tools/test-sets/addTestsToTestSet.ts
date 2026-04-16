@@ -26,7 +26,7 @@ export async function addTestsToTestSet(
   axiosInstance: AxiosInstance,
   config: Config,
   args: any
-): Promise<{ content: Array<{ type: string; text: string }> }> {
+): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
     const { test_set_key, test_keys } = args;
     const testKeyList = test_keys.split(',').map((t: string) => t.trim());
@@ -45,6 +45,7 @@ export async function addTestsToTestSet(
             text: 'Xray Cloud API credentials not configured. This tool requires XRAY_CLIENT_ID and XRAY_CLIENT_SECRET in .mcp.env.',
           },
         ],
+        isError: true,
       };
     }
 
@@ -81,6 +82,7 @@ View at: ${config.JIRA_BASE_URL}/browse/${test_set_key}`,
           }`,
         },
       ],
+      isError: true,
     };
   }
 }

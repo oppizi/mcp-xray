@@ -27,7 +27,7 @@ export async function listTestSets(
   axiosInstance: AxiosInstance,
   config: Config,
   args: any
-): Promise<{ content: Array<{ type: string; text: string }> }> {
+): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
     const projectKey = args.project_key;
     const maxResults = Math.min(args?.max_results ?? 50, 100);
@@ -47,6 +47,7 @@ export async function listTestSets(
     );
 
     const testSets = response.data.issues;
+    const total = response.data.total ?? testSets.length;
 
     if (testSets.length === 0) {
       return {
@@ -59,7 +60,12 @@ export async function listTestSets(
       };
     }
 
-    const summary = `Found ${testSets.length} test set(s) in project "${projectKey}"`;
+    // Expose pagination: show total AND page size to prevent silent truncation.
+    const truncationNote =
+      total > testSets.length
+        ? ` (showing first ${testSets.length} — raise max_results to see more)`
+        : '';
+    const summary = `Found ${total} test set(s) in project "${projectKey}"${truncationNote}`;
 
     const setList = testSets
       .map((set: JiraIssue) => {
@@ -91,6 +97,7 @@ export async function listTestSets(
           }`,
         },
       ],
+      isError: true,
     };
   }
 }

@@ -1,5 +1,6 @@
 import axios, { AxiosInstance } from 'axios';
 import { Config, XrayCloudToken } from '../types.js';
+import { parseJira } from '../tools/helpers/jira.js';
 
 export class XrayCloudService {
   private static instance: XrayCloudService;
@@ -157,7 +158,7 @@ export class XrayCloudService {
       // Use getTests (plural) with JQL filter - this reliably returns test steps
       const query = `
         query {
-          getTests(jql: "key = ${testKey}", limit: 1) {
+          getTests(jql: ${JSON.stringify(`key = ${testKey}`)}, limit: 1) {
             total
             results {
               issueId
@@ -460,7 +461,7 @@ export class XrayCloudService {
     const mutation = `
       mutation {
         addTestStep(
-          issueId: "${issueId}"
+          issueId: ${JSON.stringify(issueId)}
           step: {
             action: ${JSON.stringify(step.action)}
             ${step.data ? `data: ${JSON.stringify(step.data)}` : ''}
@@ -520,7 +521,7 @@ export class XrayCloudService {
     const mutation = `
       mutation {
         updateTestStep(
-          stepId: "${stepId}"
+          stepId: ${JSON.stringify(stepId)}
           step: { ${stepFields.join(', ')} }
         ) {
           warnings
@@ -566,7 +567,7 @@ export class XrayCloudService {
 
     const mutation = `
       mutation {
-        removeAllTestSteps(issueId: "${issueId}")
+        removeAllTestSteps(issueId: ${JSON.stringify(issueId)})
       }
     `;
 
@@ -608,7 +609,7 @@ export class XrayCloudService {
 
     const query = `
       query {
-        getTestRuns(testIssueIds: ["${testIssueId}"], limit: 100) {
+        getTestRuns(testIssueIds: [${JSON.stringify(testIssueId)}], limit: 100) {
           total
           results {
             id
@@ -724,8 +725,8 @@ export class XrayCloudService {
     const mutation = `
       mutation {
         updateTestRunStep(
-          testRunId: "${testRunId}",
-          stepId: "${stepId}",
+          testRunId: ${JSON.stringify(testRunId)},
+          stepId: ${JSON.stringify(stepId)},
           updateData: { ${updateFields.join(', ')} }
         ) {
           warnings
@@ -768,7 +769,7 @@ export class XrayCloudService {
 
     const mutation = `
       mutation {
-        removeTestStep(stepId: "${stepId}")
+        removeTestStep(stepId: ${JSON.stringify(stepId)})
       }
     `;
 
@@ -851,7 +852,18 @@ export class XrayCloudService {
         );
       }
 
-      return response.data.data.getTests?.results || [];
+      const data = response.data.data.getTests;
+      // Expose both `results` array (legacy shape) and `total` count so
+      // callers can surface truncation warnings. The returned array carries
+      // `total` as a non-enumerable property so existing consumers that
+      // treat the value as a plain array keep working, while new callers
+      // can read `(result as any).total`.
+      const results = (data?.results || []) as any[];
+      Object.defineProperty(results, 'total', {
+        value: data?.total ?? results.length,
+        enumerable: false,
+      });
+      return results;
     } catch (error: any) {
       console.error('Failed to search tests:', error.message);
       if (error.response?.status === 401) {
@@ -872,7 +884,7 @@ export class XrayCloudService {
     const mutation = `
       mutation {
         addPreconditionsToTest(
-          issueId: "${testId}"
+          issueId: ${JSON.stringify(testId)}
           preconditionIssueIds: ["${preconditionId}"]
         ) {
           addedPreconditions
@@ -971,7 +983,7 @@ export class XrayCloudService {
 
     const query = `
       query {
-        getPreconditions(jql: "key = ${preconditionKey}", limit: 1) {
+        getPreconditions(jql: ${JSON.stringify(`key = ${preconditionKey}`)}, limit: 1) {
           total
           results {
             issueId
@@ -1031,7 +1043,7 @@ export class XrayCloudService {
 
     const query = `
       query {
-        getTests(jql: "key = ${testKey}", limit: 1) {
+        getTests(jql: ${JSON.stringify(`key = ${testKey}`)}, limit: 1) {
           results {
             issueId
             preconditions(limit: 100) {
@@ -1091,7 +1103,7 @@ export class XrayCloudService {
     const mutation = `
       mutation {
         removePreconditionsFromTest(
-          issueId: "${testId}"
+          issueId: ${JSON.stringify(testId)}
           preconditionIssueIds: ["${preconditionId}"]
         )
       }
@@ -1156,8 +1168,8 @@ export class XrayCloudService {
     const mutation = `
       mutation {
         addTestsToTestPlan(
-          issueId: "${planId}"
-          testIssueIds: [${testIds.map(id => `"${id}"`).join(', ')}]
+          issueId: ${JSON.stringify(planId)}
+          testIssueIds: [${testIds.map(id => JSON.stringify(id)).join(', ')}]
         ) {
           addedTests
           warning
@@ -1204,8 +1216,8 @@ export class XrayCloudService {
     const mutation = `
       mutation {
         addTestsToTestSet(
-          issueId: "${setId}"
-          testIssueIds: [${testIds.map(id => `"${id}"`).join(', ')}]
+          issueId: ${JSON.stringify(setId)}
+          testIssueIds: [${testIds.map(id => JSON.stringify(id)).join(', ')}]
         ) {
           addedTests
           warning
@@ -1253,7 +1265,7 @@ export class XrayCloudService {
     const mutation = `
       mutation {
         updateGherkinTestDefinition(
-          issueId: "${issueId}"
+          issueId: ${JSON.stringify(issueId)}
           gherkin: ${JSON.stringify(gherkin)}
         ) {
           issueId
@@ -1304,7 +1316,7 @@ export class XrayCloudService {
     const mutation = `
       mutation {
         updateTestType(
-          issueId: "${issueId}"
+          issueId: ${JSON.stringify(issueId)}
           testType: { name: ${JSON.stringify(testType)} }
         ) {
           issueId
@@ -1354,7 +1366,7 @@ export class XrayCloudService {
     const mutation = `
       mutation {
         updatePrecondition(
-          issueId: "${issueId}"
+          issueId: ${JSON.stringify(issueId)}
           data: {
             preconditionType: { name: ${JSON.stringify(preconditionType)} }
             definition: ${JSON.stringify(definition)}
@@ -1497,7 +1509,7 @@ export class XrayCloudService {
 
       const tests = results[0].tests?.results || [];
       return tests.map((t: any) => {
-        const jira = typeof t.jira === 'string' ? JSON.parse(t.jira) : t.jira;
+        const jira = parseJira(t.jira);
         return jira?.key || t.issueId;
       });
     } catch (error: any) {
@@ -1551,7 +1563,7 @@ export class XrayCloudService {
 
       const tests = results[0].tests?.results || [];
       return tests.map((t: any) => {
-        const jira = typeof t.jira === 'string' ? JSON.parse(t.jira) : t.jira;
+        const jira = parseJira(t.jira);
         return jira?.key || t.issueId;
       });
     } catch (error: any) {
@@ -1573,8 +1585,8 @@ export class XrayCloudService {
     const mutation = `
       mutation {
         addTestsToTestExecution(
-          issueId: "${execId}"
-          testIssueIds: [${testIds.map(id => `"${id}"`).join(', ')}]
+          issueId: ${JSON.stringify(execId)}
+          testIssueIds: [${testIds.map(id => JSON.stringify(id)).join(', ')}]
         ) {
           addedTests
           warning
@@ -1619,7 +1631,7 @@ export class XrayCloudService {
     const mutation = `
       mutation {
         addTestExecutionsToTestPlan(
-          issueId: "${planId}"
+          issueId: ${JSON.stringify(planId)}
           testExecIssueIds: [${execIds.map(id => `"${id}"`).join(', ')}]
         ) {
           addedTestExecutions
@@ -1665,7 +1677,7 @@ export class XrayCloudService {
     const mutation = `
       mutation {
         addTestEnvironmentsToTestExecution(
-          issueId: "${execId}"
+          issueId: ${JSON.stringify(execId)}
           testEnvironments: [${environments.map(e => `"${e}"`).join(', ')}]
         ) {
           addedTestEnvironments
@@ -1762,7 +1774,7 @@ export class XrayCloudService {
     const mutation = `
       mutation {
         updateTestRunStatus(
-          id: "${testRunId}"
+          id: ${JSON.stringify(testRunId)}
           status: ${JSON.stringify(status)}
         )
       }
@@ -1805,7 +1817,7 @@ export class XrayCloudService {
     const mutation = `
       mutation {
         updateTestRunComment(
-          id: "${testRunId}"
+          id: ${JSON.stringify(testRunId)}
           comment: ${JSON.stringify(comment)}
         )
       }
@@ -1848,7 +1860,7 @@ export class XrayCloudService {
     const mutation = `
       mutation {
         addDefectsToTestRun(
-          id: "${testRunId}"
+          id: ${JSON.stringify(testRunId)}
           issues: [${defectKeys.map(k => `"${k}"`).join(', ')}]
         ) {
           addedDefects
@@ -1895,12 +1907,16 @@ export class XrayCloudService {
     const token = await this.authenticate();
 
     const queryName = repositoryType === 'precondition' ? 'getPreconditionFolder' : 'getFolder';
+    // The Xray Cloud FolderResults schema exposes `testsCount` and `issuesCount`
+    // (not `testCount`). `testsCount` = only Test-type issues; `issuesCount`
+    // includes all issue types under the folder.
     const query = `
       query {
-        ${queryName}(projectId: "${projectId}", path: ${JSON.stringify(path)}) {
+        ${queryName}(projectId: ${JSON.stringify(projectId)}, path: ${JSON.stringify(path)}) {
           name
           path
-          testCount
+          testsCount
+          issuesCount
           folders
         }
       }
@@ -1965,7 +1981,7 @@ export class XrayCloudService {
         getTests(
           limit: ${limit}
           ${jqlFilter}
-          folder: { projectId: "${projectId}", path: ${JSON.stringify(folderPath)} }
+          folder: { projectId: ${JSON.stringify(projectId)}, path: ${JSON.stringify(folderPath)} }
         ) {
           total
           results {
@@ -2024,9 +2040,9 @@ export class XrayCloudService {
     const mutation = `
       mutation {
         addTestsToFolder(
-          projectId: "${projectId}"
+          projectId: ${JSON.stringify(projectId)}
           path: ${JSON.stringify(path)}
-          testIssueIds: [${testIssueIds.map(id => `"${id}"`).join(', ')}]
+          testIssueIds: [${testIssueIds.map(id => JSON.stringify(id)).join(', ')}]
         ) {
           folder {
             name
@@ -2076,7 +2092,7 @@ export class XrayCloudService {
     const mutation = `
       mutation {
         updatePreconditionFolder(
-          issueId: "${issueId}"
+          issueId: ${JSON.stringify(issueId)}
           folder: ${JSON.stringify(folderPath)}
         ) {
           issueId
@@ -2127,7 +2143,7 @@ export class XrayCloudService {
     const mutation = `
       mutation {
         updateTestFolder(
-          issueId: "${issueId}"
+          issueId: ${JSON.stringify(issueId)}
           folder: ${JSON.stringify(destinationPath)}
         ) {
           issueId

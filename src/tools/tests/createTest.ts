@@ -48,7 +48,7 @@ export async function createTest(
   axiosInstance: AxiosInstance,
   config: Config,
   args: any
-): Promise<{ content: Array<{ type: string; text: string }> }> {
+): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
     const projectKey = args.project_key;
     const summary = args.summary;
@@ -196,6 +196,7 @@ View at: ${config.JIRA_BASE_URL}/browse/${testKey}`,
           }`,
         },
       ],
+      isError: true,
     };
   }
 }

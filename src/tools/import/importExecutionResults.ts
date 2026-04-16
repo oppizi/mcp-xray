@@ -21,7 +21,7 @@ export async function importExecutionResults(
   axiosInstance: AxiosInstance,
   config: Config,
   args: any
-): Promise<{ content: Array<{ type: string; text: string }> }> {
+): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
     const resultsJson = args.results_json;
     console.error('Importing execution results to Xray Cloud...');
@@ -79,6 +79,7 @@ export async function importExecutionResults(
           }`,
         },
       ],
+      isError: true,
     };
   }
 }

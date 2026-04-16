@@ -32,7 +32,7 @@ export async function searchTests(
   axiosInstance: AxiosInstance,
   config: Config,
   args: any
-): Promise<{ content: Array<{ type: string; text: string }> }> {
+): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
     const { jql, limit = 50, include_steps = false } = args;
 
@@ -48,6 +48,7 @@ export async function searchTests(
             text: 'Xray Cloud API credentials not configured. This tool requires XRAY_CLIENT_ID and XRAY_CLIENT_SECRET in .mcp.env.',
           },
         ],
+        isError: true,
       };
     }
 
@@ -68,7 +69,14 @@ export async function searchTests(
       };
     }
 
-    let output = `**Found ${results.length} test(s)**\n\n`;
+    // Expose pagination: show total AND page size to prevent silent truncation.
+    // `results.total` is set by XrayCloudService.searchTests (see note there).
+    const total = (results as any).total ?? results.length;
+    const truncationNote =
+      total > results.length
+        ? ` (showing first ${results.length} — raise limit to see more)`
+        : '';
+    let output = `**Found ${total} test(s)**${truncationNote}\n\n`;
 
     for (const test of results) {
       output += `**${test.issueId}** — ${test.testType?.name || 'Unknown'} test\n`;
@@ -104,6 +112,7 @@ export async function searchTests(
           }`,
         },
       ],
+      isError: true,
     };
   }
 }
