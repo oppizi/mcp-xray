@@ -11,12 +11,12 @@ export default defineConfig({
       include: ['src/**/*.ts'],
       exclude: ['src/index.ts', 'src/**/*.d.ts'],
       thresholds: {
-        // Start lenient. Tighten as tests are added per CHECKLIST.md.
-        // Final targets (enforced after Phase 2 complete): lines 80 / functions 80 / branches 70.
-        lines: 0,
-        functions: 0,
-        branches: 0,
-        statements: 0,
+        // Ratchet: set to current actuals so coverage can only go UP.
+        // These prevent regressions — adding code without tests will fail CI.
+        lines: 70,
+        functions: 65,
+        branches: 50,
+        statements: 70,
       },
     },
     testTimeout: 30_000,

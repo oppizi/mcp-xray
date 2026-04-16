@@ -1,6 +1,7 @@
 import { AxiosInstance } from 'axios';
 import { Config } from '../../types.js';
 import { XrayCloudService } from '../../services/XrayCloudService.js';
+import { parseJira } from '../helpers/jira.js';
 
 export const getTestsInFolderTool = {
   name: 'get_tests_in_folder',
@@ -95,8 +96,7 @@ export async function getTestsInFolder(
     output += `Total: ${data.total} | Showing: ${data.results.length}\n\n`;
 
     for (const test of data.results) {
-      const jira =
-        typeof test.jira === 'string' ? JSON.parse(test.jira) : test.jira;
+      const jira = parseJira(test.jira);
       const key = jira?.key || test.issueId;
       const summary = jira?.summary || 'No summary';
       const status = jira?.status?.name || jira?.status || 'Unknown';
@@ -115,8 +115,7 @@ export async function getTestsInFolder(
         output += '- Preconditions: ';
         output += test.preconditions.results
           .map((pc: any) => {
-            const pcJira =
-              typeof pc.jira === 'string' ? JSON.parse(pc.jira) : pc.jira;
+            const pcJira = parseJira(pc.jira);
             return `${pcJira?.key || pc.issueId} (${pcJira?.summary || ''})`;
           })
           .join(', ');

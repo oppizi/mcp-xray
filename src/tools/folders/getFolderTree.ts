@@ -53,7 +53,9 @@ function formatTree(
   const name = folder.name || '(root)';
   const path = folder.path || '/';
   // Match the Xray schema field names: testsCount / issuesCount.
-  const testsCount = folder.testsCount ?? folder.testCount; // testCount kept as fallback
+  // The service queries `testsCount` exclusively. Contract test prevents
+  // reintroduction of the old `testCount` field name.
+  const testsCount = folder.testsCount;
   const issuesCount = folder.issuesCount;
   const countParts: string[] = [];
   if (testsCount != null) countParts.push(`${testsCount} tests`);
