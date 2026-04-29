@@ -1,0 +1,7 @@
+name: AI Security Check
+on:
+  pull_request:
+jobs:
+  security:
+    name: AI Security Check
+    uses: oppizi/compose/.github/workflows/ai-security.yml@feat/ai-security-gate
