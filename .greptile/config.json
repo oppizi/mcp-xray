@@ -1,0 +1,16 @@
+{
+  "rules": [
+    {
+      "id": "no-committed-env-files",
+      "rule": "AI projects must not commit .env, .env.local, .env.production, or any .env.* variant. Use .env.example with placeholder values instead.",
+      "severity": "critical",
+      "scope": ["**/.env", "**/.env.*"]
+    },
+    {
+      "id": "no-hardcoded-credentials",
+      "rule": "No hardcoded API keys, passwords, tokens, or database connection strings as literal values in source files. All credentials must be read from environment variables — this applies even to placeholder-looking or test values.",
+      "severity": "critical",
+      "scope": ["**/*.js", "**/*.ts", "**/*.py", "**/*.mjs", "**/*.cjs", "**/*.json", "**/*.yaml", "**/*.yml", "**/*.sh"]
+    }
+  ]
+}
